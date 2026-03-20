@@ -6,41 +6,46 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
 
 ## Screenshots
 
+<div align="center">
 <table>
   <tr>
     <td align="center">
-      <img src="StreakMed/Screenshots/welcome_screen.png" width="160"/><br/>
+      <img src="MedStreak/Screenshots/welcome_screen.png" width="160"/><br/>
       <sub><b>Welcome</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Today_Empty_17.png" width="160"/><br/>
+      <img src="MedStreak/Screenshots/Today_Empty_17.png" width="160"/><br/>
       <sub><b>Today — Empty State</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Today_populated_17.png" width="160"/><br/>
+      <img src="MedStreak/Screenshots/Today_populated_17.png" width="160"/><br/>
       <sub><b>Today — Active</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Med_17.png" width="160"/><br/>
+      <img src="MedStreak/Screenshots/Med_17.png" width="160"/><br/>
       <sub><b>Medications</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="StreakMed/Screenshots/Med_create_17.png" width="160"/><br/>
+      <img src="MedStreak/Screenshots/Med_create_17.png" width="160"/><br/>
       <sub><b>Add Medication</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/History_17a.PNG" width="160"/><br/>
+      <img src="MedStreak/Screenshots/History_17a.PNG" width="160"/><br/>
       <sub><b>History</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Settings_17.png" width="160"/><br/>
+      <img src="MedStreak/Screenshots/Calendar_17.png" width="160"/><br/>
+      <sub><b>Calendar</b></sub>
+    </td>
+    <td align="center">
+      <img src="MedStreak/Screenshots/Settings_17.png" width="160"/><br/>
       <sub><b>Settings</b></sub>
     </td>
-    <td></td>
   </tr>
 </table>
+</div>
 
 ---
 
@@ -103,7 +108,7 @@ Right-click `Info.plist` → **Open As → Source Code**, then add:
 
 ## 6. Accent Color
 
-In `Assets.xcassets → AccentColor`, set any appearance to `#4FFFB0` (R: 79, G: 255, B: 176)
+In `Assets.xcassets → AccentColor`, set any appearance to `#4FFFB0` (R: 79, G: 255, B: 176).
 
 ## 7. Build Settings
 
