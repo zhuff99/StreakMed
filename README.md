@@ -4,6 +4,46 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
 
 ---
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="Screenshots/welcome_screen.png" width="160"/><br/>
+      <sub><b>Welcome</b></sub>
+    </td>
+    <td align="center">
+      <img src="Screenshots/Today_Empty_17.png" width="160"/><br/>
+      <sub><b>Today — Empty State</b></sub>
+    </td>
+    <td align="center">
+      <img src="Screenshots/Today_populated_17.png" width="160"/><br/>
+      <sub><b>Today — Active</b></sub>
+    </td>
+    <td align="center">
+      <img src="Screenshots/Med_17.png" width="160"/><br/>
+      <sub><b>Medications</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="Screenshots/Med_create_17.png" width="160"/><br/>
+      <sub><b>Add Medication</b></sub>
+    </td>
+    <td align="center">
+      <img src="Screenshots/History_17a.PNG" width="160"/><br/>
+      <sub><b>History</b></sub>
+    </td>
+    <td align="center">
+      <img src="Screenshots/Settings_17.png" width="160"/><br/>
+      <sub><b>Settings</b></sub>
+    </td>
+    <td></td>
+  </tr>
+</table>
+
+---
+
 # Project Setup
 
 ## 1. Create the Xcode Project
