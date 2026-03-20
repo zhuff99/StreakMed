@@ -103,7 +103,7 @@ Right-click `Info.plist` → **Open As → Source Code**, then add:
 
 ## 6. Accent Color
 
-In `Assets.xcassets → AccentColor`, set any appearance to `#4FFFB0` (R: 79, G: 255, B: 176).
+In `Assets.xcassets → AccentColor`, set any appearance to `#4FFFB0` (R: 79, G: 255, B: 176)
 
 ## 7. Build Settings
 
