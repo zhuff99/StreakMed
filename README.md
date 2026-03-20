@@ -283,17 +283,6 @@ What the policy covers:
 
 ---
 
-# Roadmap
-
-## Before App Store Submission
-
-- [ ] App Store screenshots — required for 6.5" and 6.7" display sizes
-- [ ] App Store listing — subtitle (30 chars max), description, and keywords (100 chars max)
-- [ ] Privacy nutrition labels in App Store Connect — all "No" since no data is collected
-- [ ] Age rating questionnaire — expected result: 4+
-- [ ] Support URL — Notion page or mailto link both work
-- [ ] TestFlight beta on a real device — especially verify notifications and fresh CoreData install
-
 ## Future Features
 
 - [ ] Widget extension — home screen glanceable dose status
