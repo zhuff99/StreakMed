@@ -286,8 +286,7 @@ What the policy covers:
 ## Future Features
 
 - [ ] Widget extension — home screen glanceable dose status
-- [ ] iCloud sync — sync medications and history across devices
-- [ ] Refill reminders — notification when pill count drops below a threshold
+- [ ] Potential--iCloud sync — sync medications and history across devices
 - [ ] Export history — dose log as CSV or PDF for doctor visits
 - [ ] Apple Health integration — write dose events to HealthKit
 - [ ] Siri Shortcuts — "Hey Siri, I took my morning meds"
