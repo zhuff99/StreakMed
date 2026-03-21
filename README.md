@@ -3,9 +3,7 @@
 An iOS medication tracking app built with SwiftUI and CoreData. Helps users build consistent medication habits through streak tracking, flexible scheduling, per-dose notifications, and a clean dark-mode interface.
 
 ---
-<div align="center">
 ## Screenshots
-</div>
   
 <table>
   <tr>
