@@ -1,8 +1,15 @@
+<div align="center">
+
 # StreakMed
 
 An iOS medication tracking app built with SwiftUI and CoreData. Helps users build consistent medication habits through streak tracking, flexible scheduling, per-dose notifications, and a clean dark-mode interface.
 
+</div>
+
 ---
+
+<div align="center">
+
 ## Screenshots
   
 <table>
@@ -292,3 +299,4 @@ What the policy covers:
 - [ ] Apple Watch companion app — mark doses from the wrist
 - [ ] Caregiver mode — manage medications for a family member
 - [ ] Medication interactions — basic warnings for known interactions
+
