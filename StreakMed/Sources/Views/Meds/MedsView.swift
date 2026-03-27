@@ -20,18 +20,20 @@ struct MedsView: View {
                             .foregroundColor(AppTheme.textMuted)
                     }
                     Spacer()
-                    Button { showAddSheet = true } label: {
-                        Text("+ Add")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(AppTheme.accent)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 10)
-                            .background(AppTheme.accentDim)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(AppTheme.accent.opacity(0.5), lineWidth: 1.5)
-                            )
-                            .cornerRadius(14)
+                    if !store.medications.isEmpty {
+                        Button { showAddSheet = true } label: {
+                            Text("+ Add")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.accent)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 10)
+                                .background(AppTheme.accentDim)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(AppTheme.accent.opacity(0.5), lineWidth: 1.5)
+                                )
+                                .cornerRadius(14)
+                        }
                     }
                 }
                 .padding(.horizontal, 24)

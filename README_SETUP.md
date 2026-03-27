@@ -290,8 +290,15 @@ What the policy covers:
 
 ## Future Features
 
+### Planned (discussed)
+
+- [ ] **Streak milestone badges** — award badges at 7, 14, 30, 60, 90, 180, and 365 day streaks with trophy icons, a celebratory unlock animation, and a badge shelf in History or Settings showing locked/unlocked badges with dates earned
+- [ ] **Adherence score** — a quietly incrementing score that goes up each time a dose is taken and when a full day is completed, displayed subtly on the Today tab (intentionally understated to suit the target audience rather than feeling like a video game)
+
+### Backlog
+
 - [ ] Widget extension — home screen glanceable dose status
-- [ ] Potential--iCloud sync — sync medications and history across devices
+- [ ] iCloud sync — sync medications and history across devices
 - [ ] Export history — dose log as CSV or PDF for doctor visits
 - [ ] Apple Health integration — write dose events to HealthKit
 - [ ] Siri Shortcuts — "Hey Siri, I took my morning meds"

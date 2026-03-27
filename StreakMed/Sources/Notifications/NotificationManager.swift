@@ -249,7 +249,9 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     }
 }
 
-// MARK: - Notification name
+// MARK: - Notification names
 extension Notification.Name {
     static let didReceiveMarkTakenAction = Notification.Name("StreakMed.didReceiveMarkTakenAction")
+    /// Posted by HomeEmptyState's "Add Medications" button to switch the root tab to Meds
+    static let navigateToMeds = Notification.Name("StreakMed.navigateToMeds")
 }

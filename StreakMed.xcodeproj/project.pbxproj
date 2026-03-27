@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A3CA2C712F7624A50054BCBE /* LocalAuthentication.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3CA2C6F2F76246C0054BCBE /* LocalAuthentication.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		A3202F8F2F62007C006CC7B5 /* StreakMed.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StreakMed.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3CA2C6F2F76246C0054BCBE /* LocalAuthentication.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LocalAuthentication.framework; path = System/Library/Frameworks/LocalAuthentication.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A3CA2C712F7624A50054BCBE /* LocalAuthentication.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -33,6 +39,7 @@
 			isa = PBXGroup;
 			children = (
 				A3202F912F62007C006CC7B5 /* StreakMed */,
+				A3CA2C6E2F76246B0054BCBE /* Frameworks */,
 				A3202F902F62007C006CC7B5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +50,14 @@
 				A3202F8F2F62007C006CC7B5 /* StreakMed.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A3CA2C6E2F76246B0054BCBE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A3CA2C6F2F76246C0054BCBE /* LocalAuthentication.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -260,6 +275,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "StreakMed uses your camera to scan prescription labels.\n\nStreakMed uses your camera to scan prescription labels.\n\nStreakMed uses your camera to scan prescription labels.\n\nStreakMed uses your camera to scan labels ";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "StreakMed uses Face ID to protect your medication data.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -295,6 +311,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "StreakMed uses your camera to scan prescription labels.\n\nStreakMed uses your camera to scan prescription labels.\n\nStreakMed uses your camera to scan prescription labels.\n\nStreakMed uses your camera to scan labels ";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "StreakMed uses Face ID to protect your medication data.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

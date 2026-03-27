@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import LocalAuthentication
 
 // MARK: - Root Onboarding Container
 
@@ -23,9 +24,12 @@ struct OnboardingView: View {
             case 2:
                 OnboardingMedsSetup(
                     context: viewContext,
-                    onComplete: { completeOnboarding() }
+                    onComplete: { advance() }
                 )
                 .transition(forwardTransition)
+            case 3:
+                OnboardingFaceID { completeOnboarding() }
+                    .transition(forwardTransition)
             default:
                 EmptyView()
             }
@@ -389,6 +393,118 @@ private struct OnboardingMedRow: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(AppTheme.border, lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Step 4: Face ID / Passcode
+
+struct OnboardingFaceID: View {
+    let onComplete: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
+
+    private var isPad: Bool { sizeClass == .regular }
+
+    /// Cached on first render so LAContext isn't allocated on every property access.
+    @State private var biometryType: LABiometryType = {
+        let ctx = LAContext()
+        var err: NSError?
+        ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err)
+        return ctx.biometryType
+    }()
+
+    private var icon: String {
+        switch biometryType {
+        case .faceID:  return "faceid"
+        case .touchID: return "touchid"
+        default:       return "lock.fill"
+        }
+    }
+
+    private var title: String {
+        switch biometryType {
+        case .faceID:  return "Enable Face ID"
+        case .touchID: return "Enable Touch ID"
+        default:       return "Enable Passcode Lock"
+        }
+    }
+
+    private var description: String {
+        switch biometryType {
+        case .faceID:
+            return "Lock StreakMed when it's in the background. Face ID will be required to view your medications."
+        case .touchID:
+            return "Lock StreakMed when it's in the background. Touch ID will be required to view your medications."
+        default:
+            return "Lock StreakMed when it's in the background. Your device passcode will be required to view your medications."
+        }
+    }
+
+    private var enableLabel: String {
+        switch biometryType {
+        case .faceID:  return "Enable Face ID"
+        case .touchID: return "Enable Touch ID"
+        default:       return "Enable Passcode Lock"
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: isPad ? 36 : 24) {
+                ZStack {
+                    Circle()
+                        .fill(AppTheme.accentDim)
+                        .frame(width: isPad ? 120 : 90, height: isPad ? 120 : 90)
+                    Image(systemName: icon)
+                        .font(.system(size: isPad ? 52 : 38, weight: .medium))
+                        .foregroundColor(AppTheme.accent)
+                }
+
+                VStack(spacing: isPad ? 14 : 10) {
+                    Text("Protect Your Health Data")
+                        .font(.system(size: isPad ? 44 : 32, weight: .bold))
+                        .foregroundColor(AppTheme.text)
+                        .tracking(-0.8)
+                        .multilineTextAlignment(.center)
+
+                    Text(description)
+                        .font(.system(size: isPad ? 19 : 16))
+                        .foregroundColor(AppTheme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                        .padding(.horizontal, 16)
+                }
+            }
+            .frame(maxWidth: isPad ? 560 : .infinity)
+
+            Spacer()
+
+            VStack(spacing: 14) {
+                OnboardingCTA(label: enableLabel, style: .primary) {
+                    biometricLockEnabled = true
+                    onComplete()
+                }
+
+                Button(action: onComplete) {
+                    Text("Not now")
+                        .font(.system(size: isPad ? 17 : 15, weight: .medium))
+                        .foregroundColor(AppTheme.textMuted)
+                }
+
+                Text("You can turn this on anytime in Settings → Privacy.")
+                    .font(.system(size: isPad ? 13 : 11))
+                    .foregroundColor(AppTheme.textDim)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: isPad ? 480 : .infinity)
+            .padding(.horizontal, 28)
+            .padding(.bottom, isPad ? 64 : 52)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

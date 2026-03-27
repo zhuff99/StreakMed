@@ -5,7 +5,6 @@ struct ProgressCard: View {
     let total:      Int
     let streak:     Int
     let bestStreak: Int
-
     private var progress: Double {
         guard total > 0 else { return 0 }
         return Double(taken) / Double(total)

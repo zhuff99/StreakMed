@@ -235,12 +235,30 @@ struct HomeEmptyState: View {
                 Text("No medications yet")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(AppTheme.textMuted)
-                Text("Go to the Meds tab to add your first medication.")
+                Text("Add your medications to start tracking your doses and building your streak.")
                     .font(.system(size: 14))
                     .foregroundColor(AppTheme.textDim)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
+
+            // Takes the user straight to the Meds tab so they don't have to hunt for it
+            Button {
+                NotificationCenter.default.post(name: .navigateToMeds, object: nil)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Add Medications")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundColor(AppTheme.accentFG)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
+                .background(AppTheme.accent)
+                .cornerRadius(14)
+            }
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
     }

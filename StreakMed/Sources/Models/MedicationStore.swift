@@ -143,6 +143,15 @@ final class MedicationStore: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.refresh() }
             .store(in: &cancellables)
+
+        // Refresh whenever the app returns to the foreground.
+        // Registered here (on the model) rather than in a SwiftUI view so it
+        // can never be missed due to view lifecycle timing issues.
+        NotificationCenter.default
+            .publisher(for: UIApplication.didBecomeActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refresh() }
+            .store(in: &cancellables)
     }
 
     // MARK: - Refresh
@@ -280,6 +289,7 @@ final class MedicationStore: ObservableObject {
         save()
         fetchTodayLogs()
         updateBestStreak()
+
         // Cancel this dose's notification for today and reschedule for tomorrow
         NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: doseIndex)
     }

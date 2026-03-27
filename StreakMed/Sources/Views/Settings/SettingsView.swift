@@ -13,6 +13,9 @@ struct SettingsView: View {
 
     @State private var notifStatus: UNAuthorizationStatus = .notDetermined  // live iOS permission status
     @State private var showPermissionAlert = false  // shown when toggling on but permission is denied
+    @State private var showExportPicker    = false  // confirmation dialog: CSV vs PDF
+    @State private var isExporting        = false  // prevents double-taps while generating
+    @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
 
     /// Options for the "remind me X minutes early" preference.
     private let leadOptions: [(label: String, value: Int)] = [
@@ -135,6 +138,17 @@ struct SettingsView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
 
+                // ── Privacy ───────────────────────────────────────────────
+                SettingsCard(title: "Privacy") {
+                    SettingsToggleRow(
+                        label: "Require Face ID / Passcode",
+                        sub:   "Lock the app when it goes to the background",
+                        isOn:  $biometricLockEnabled
+                    )
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+
                 // ── Data ──────────────────────────────────────────────────
                 SettingsCard(title: "Data") {
                     SettingsInfoRow(label: "Medications tracked",   value: "\(store.medications.count)")
@@ -144,6 +158,15 @@ struct SettingsView: View {
                     SettingsInfoRow(label: "Best streak",           value: "\(store.bestStreak) days")
                     Divider().background(AppTheme.border)
                     SettingsInfoRow(label: "Adherence this month",  value: "\(store.adherenceRateThisMonth())%")
+                    Divider().background(AppTheme.border)
+                    SettingsLinkRow(
+                        label: isExporting ? "Preparing export…" : "Export History",
+                        icon:  "arrow.up.doc.fill",
+                        color: AppTheme.accent
+                    ) {
+                        guard !isExporting else { return }
+                        showExportPicker = true
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
@@ -204,6 +227,13 @@ struct SettingsView: View {
                 notifStatus = status
             }
         }
+        .confirmationDialog("Export History", isPresented: $showExportPicker, titleVisibility: .visible) {
+            Button("Export as CSV") { exportHistory(format: "csv") }
+            Button("Export as PDF") { exportHistory(format: "pdf") }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your full dose history will be saved to a file you can share or save.")
+        }
         .alert("Notifications Disabled", isPresented: $showPermissionAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -221,6 +251,42 @@ struct SettingsView: View {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build   = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         return "\(version) (\(build))"
+    }
+
+    /// Generates the chosen export format then shares it.
+    /// CSV runs on a background thread (pure string work).
+    /// PDF must run on the main thread — UIMarkupTextPrintFormatter uses WebKit
+    /// internally, and WebKit crashes if first accessed off the main thread.
+    private func exportHistory(format: String) {
+        isExporting = true
+        let context = store.viewContext
+        if format == "csv" {
+            DispatchQueue.global(qos: .userInitiated).async {
+                let url = HistoryExporter.makeCSV(context: context)
+                DispatchQueue.main.async {
+                    isExporting = false
+                    if let url { shareFile(url) }
+                }
+            }
+        } else {
+            let url = HistoryExporter.makePDF(context: context)
+            isExporting = false
+            if let url { shareFile(url) }
+        }
+    }
+
+    /// Presents the iOS share sheet for the given file URL.
+    private func shareFile(_ url: URL) {
+        guard let scene  = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first,
+              let root   = window.rootViewController else { return }
+        let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        // On iPad the share sheet needs a source rect
+        av.popoverPresentationController?.sourceView = window
+        av.popoverPresentationController?.sourceRect = CGRect(x: window.bounds.midX,
+                                                              y: window.bounds.midY,
+                                                              width: 0, height: 0)
+        root.present(av, animated: true)
     }
 }
 
@@ -385,16 +451,21 @@ struct DevToolsCard: View {
                 // Back 1 day
                 DevButton(label: "← Day", color: AppTheme.blue) {
                     debug.advanceDays(-1)
+                    clearLogsForDate(debug.currentDate)
                     store.refresh()
                 }
-                // Forward 1 day
+                // Forward 1 day — also wipes any stale logs on the target date so
+                // the simulated day always starts clean (stale logs accumulate when
+                // the same debug date is visited across multiple test sessions).
                 DevButton(label: "Day →", color: AppTheme.accent) {
                     debug.advanceDays(1)
+                    clearLogsForDate(debug.currentDate)
                     store.refresh()
                 }
                 // Forward 1 week
                 DevButton(label: "+7 Days", color: AppTheme.partial) {
                     debug.advanceDays(7)
+                    clearLogsForDate(debug.currentDate)
                     store.refresh()
                 }
                 // Reset to today
@@ -610,8 +681,16 @@ struct DevToolsCard: View {
     }
 
     private func clearTodayLogs() {
+        clearLogsForDate(debug.currentDate)
+        store.refresh()
+    }
+
+    /// Deletes all DoseLogs whose scheduledDate falls on the given day.
+    /// Used by "Clear today's dose logs" and by the date-advance buttons to
+    /// wipe stale logs that may have accumulated from previous test sessions.
+    private func clearLogsForDate(_ date: Date) {
         let cal   = Calendar.current
-        let start = cal.startOfDay(for: debug.currentDate)
+        let start = cal.startOfDay(for: date)
         let end   = cal.date(byAdding: .day, value: 1, to: start)!
 
         let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
@@ -622,7 +701,6 @@ struct DevToolsCard: View {
         let logs = (try? store.viewContext.fetch(req)) ?? []
         logs.forEach { store.viewContext.delete($0) }
         try? store.viewContext.save()
-        store.refresh()
     }
 
     private func fullReset() {
