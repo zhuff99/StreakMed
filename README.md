@@ -37,15 +37,15 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
       <sub><b>Add Medication</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/History_17a.PNG" width="160"/><br/>
+      <img src="Screenshots/History_17a.PNG" width="160"/><br/>
       <sub><b>History</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Calendar_17.png" width="160"/><br/>
+      <img src="Screenshots/Calendar_17.png" width="160"/><br/>
       <sub><b>Calendar</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Settings_17.png" width="160"/><br/>
+      <img src="Screenshots/Settings_17.png" width="160"/><br/>
       <sub><b>Settings</b></sub>
     </td>
   </tr>
