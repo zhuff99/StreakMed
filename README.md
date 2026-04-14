@@ -20,7 +20,7 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
     </td>
     <td align="center">
       <img src="Screenshots/FaceID.png" width="160"/><br/>
-      <sub><b>Today — Empty State</b></sub>
+      <sub><b>Face ID</b></sub>
     </td>
     <td align="center">
       <img src="Screenshots/Today_Filled.png" width="160"/><br/>
@@ -28,13 +28,13 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
     </td>
     <td align="center">
       <img src="Screenshots/Today_empty.png" width="160"/><br/>
-      <sub><b>Medications</b></sub>
+      <sub><b>Today Tab Empty</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center">
       <img src="Screenshots/Setting.png" width="160"/><br/>
-      <sub><b>Add Medication</b></sub>
+      <sub><b>Settings</b></sub>
     </td>
     <td align="center">
       <img src="Screenshots/History.png" width="160"/><br/>
@@ -42,11 +42,11 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
     </td>
     <td align="center">
       <img src="Screenshots/Add_Medication.png" width="160"/><br/>
-      <sub><b>Calendar</b></sub>
+      <sub><b>Add Medication</b></sub>
     </td>
     <td align="center">
       <img src="Screenshots/Settings_17.png" width="160"/><br/>
-      <sub><b>Settings</b></sub>
+      <sub><b>Calander</b></sub>
     </td>
   </tr>
 </table>
