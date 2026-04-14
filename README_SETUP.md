@@ -15,38 +15,34 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
 <table>
   <tr>
     <td align="center">
-      <img src="StreakMed/Screenshots/welcome_screen.png" width="160"/><br/>
+      <img src="StreakMed/Screenshots/Opening.png" width="160"/><br/>
       <sub><b>Welcome</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Today_Empty_17.png" width="160"/><br/>
+      <img src="StreakMed/Screenshots/Today_empty.png" width="160"/><br/>
       <sub><b>Today — Empty State</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Today_populated_17.png" width="160"/><br/>
+      <img src="StreakMed/Screenshots/Today_Filled.png" width="160"/><br/>
       <sub><b>Today — Active</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Med_17.png" width="160"/><br/>
-      <sub><b>Medications</b></sub>
+      <img src="StreakMed/Screenshots/Add_Medication.png" width="160"/><br/>
+      <sub><b>Add Medication</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="StreakMed/Screenshots/Med_create_17.png" width="160"/><br/>
-      <sub><b>Add Medication</b></sub>
-    </td>
-    <td align="center">
-      <img src="StreakMed/Screenshots/History_17a.PNG" width="160"/><br/>
+      <img src="StreakMed/Screenshots/History.png" width="160"/><br/>
       <sub><b>History</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Calendar_17.png" width="160"/><br/>
-      <sub><b>Calendar</b></sub>
+      <img src="StreakMed/Screenshots/Setting.png" width="160"/><br/>
+      <sub><b>Settings</b></sub>
     </td>
     <td align="center">
-      <img src="StreakMed/Screenshots/Settings_17.png" width="160"/><br/>
-      <sub><b>Settings</b></sub>
+      <img src="StreakMed/Screenshots/FaceID.png" width="160"/><br/>
+      <sub><b>Face ID Lock</b></sub>
     </td>
   </tr>
 </table>
