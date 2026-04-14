@@ -51,12 +51,10 @@ struct DoseTimePickerSheet: View {
                 .datePickerStyle(.wheel)
                 .labelsHidden()
                 .frame(maxWidth: .infinity)
-                .colorScheme(.dark)
 
             Spacer()
         }
         .background(AppTheme.surface.ignoresSafeArea())
-        .preferredColorScheme(.dark)
     }
 }
 
@@ -428,7 +426,6 @@ struct AddMedSheet: View {
                                 .datePickerStyle(.wheel)
                                 .labelsHidden()
                                 .frame(maxWidth: .infinity)
-                                .colorScheme(.dark)
                         } else {
                             // Multiple doses — compact tappable rows, each opens its own sheet
                             VStack(spacing: 8) {
@@ -552,7 +549,6 @@ struct AddMedSheet: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Helpers

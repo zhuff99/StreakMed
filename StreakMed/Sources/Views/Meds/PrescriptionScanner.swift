@@ -166,7 +166,6 @@ struct PrescriptionScannerSheet: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .sheet(isPresented: $showPhotoPicker) {
             PHPickerRepresentable(image: $selectedImage)
         }

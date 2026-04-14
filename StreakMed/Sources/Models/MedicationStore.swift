@@ -1,6 +1,7 @@
 import CoreData
 import SwiftUI
 import Combine
+import WidgetKit
 
 // MARK: - Day Status
 
@@ -109,6 +110,86 @@ final class MedicationStore: ObservableObject {
     @Published var skippedDays:  Set<String>  = Set(UserDefaults.standard.stringArray(forKey: "skippedDays") ?? [])
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - Streak badges
+
+    /// All streak milestones in ascending order.
+    static let badgeMilestones = [3, 7, 14, 30, 60, 90, 180, 365]
+
+    /// Dictionary of earned badges: milestone → date earned.
+    @Published var earnedBadges: [Int: Date] = {
+        guard let data = UserDefaults.standard.data(forKey: "earnedBadges"),
+              let decoded = try? JSONDecoder().decode([Int: Double].self, from: data)
+        else { return [:] }
+        return decoded.mapValues { Date(timeIntervalSince1970: $0) }
+    }()
+
+    /// Set by `checkAndAwardBadges` when a new badge is unlocked; the UI clears it after showing.
+    @Published var newlyUnlockedBadge: Int? = nil
+
+    /// Persists the earned badges dictionary to UserDefaults.
+    /// Public wrapper for debug/testing access.
+    func saveBadgesPublic() { saveBadges() }
+
+    /// Persists the earned badges dictionary to UserDefaults.
+    private func saveBadges() {
+        let encoded = earnedBadges.mapValues { $0.timeIntervalSince1970 }
+        if let data = try? JSONEncoder().encode(encoded) {
+            UserDefaults.standard.set(data, forKey: "earnedBadges")
+        }
+    }
+
+    /// Checks the current streak against milestones and awards any newly reached badges.
+    /// Called from `updateBestStreak()` after every state change.
+    func checkAndAwardBadges() {
+        let streak = calculateStreak()
+        for milestone in Self.badgeMilestones {
+            if streak >= milestone && earnedBadges[milestone] == nil {
+                earnedBadges[milestone] = Date()
+                saveBadges()
+                newlyUnlockedBadge = milestone
+                // Only announce the highest new badge (they unlock in order)
+            }
+        }
+    }
+
+    /// Returns display info for a badge milestone.
+    static func badgeInfo(for milestone: Int) -> (name: String, icon: String) {
+        switch milestone {
+        case 3:   return ("First Steps",      "star.fill")
+        case 7:   return ("Week Warrior",     "flame.fill")
+        case 14:  return ("Two Week Streak",  "bolt.fill")
+        case 30:  return ("Month Master",     "trophy.fill")
+        case 60:  return ("Two Month Run",    "medal.fill")
+        case 90:  return ("Quarter Strong",   "shield.fill")
+        case 180: return ("Half Year Hero",   "crown.fill")
+        case 365: return ("Year Champion",    "diamond.fill")
+        default:  return ("Streak",           "star.fill")
+        }
+    }
+
+    // MARK: - Widget snapshot
+
+    /// App Group suite shared with the StreakMedWidget extension.
+    private static let widgetGroupID = "group.com.zacharyhuff.StreakMed"
+
+    /// Writes a lightweight snapshot of today's progress to the shared App Group
+    /// UserDefaults so the home/lock-screen widget can read live data, then asks
+    /// WidgetKit to reload its timelines immediately.
+    func updateWidgetSnapshot() {
+        guard let defaults = UserDefaults(suiteName: Self.widgetGroupID) else { return }
+        defaults.set(takenTodayCount,     forKey: "widget_taken")
+        defaults.set(scheduledTodayCount, forKey: "widget_total")
+        defaults.set(calculateStreak(),   forKey: "widget_streak")
+        if let next = pendingDoseItems.first {
+            defaults.set(next.medication.name ?? "",                           forKey: "widget_next_name")
+            defaults.set(next.scheduledTime?.timeIntervalSince1970 ?? 0,       forKey: "widget_next_time")
+        } else {
+            defaults.removeObject(forKey: "widget_next_name")
+            defaults.removeObject(forKey: "widget_next_time")
+        }
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
     // MARK: - Skip-day helpers
 
     /// Formats dates as "yyyy-MM-dd" strings for use as skip-day keys in UserDefaults.
@@ -160,15 +241,18 @@ final class MedicationStore: ObservableObject {
         fetchMedications()
         fetchTodayLogs()
         updateBestStreak()
+        updateWidgetSnapshot()
     }
 
-    /// Recalculates the streak and updates the all-time best if it's been beaten.
+    /// Recalculates the streak, updates the all-time best if it's been beaten,
+    /// and checks whether any new badge milestones have been reached.
     private func updateBestStreak() {
         let current = calculateStreak()
         if current > bestStreak {
             bestStreak = current
             UserDefaults.standard.set(current, forKey: "bestStreak")
         }
+        checkAndAwardBadges()
     }
 
     /// Fetches all active medications from CoreData, sorted by the user's drag-reorder position.
@@ -289,6 +373,7 @@ final class MedicationStore: ObservableObject {
         save()
         fetchTodayLogs()
         updateBestStreak()
+        updateWidgetSnapshot()
 
         // Cancel this dose's notification for today and reschedule for tomorrow
         NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: doseIndex)
@@ -297,6 +382,30 @@ final class MedicationStore: ObservableObject {
     /// Marks every pending dose for today as taken in one batch (called by "Mark All Taken").
     func markAllTaken() {
         pendingDoseItems.forEach { markTaken($0.medication, doseIndex: $0.doseIndex) }
+    }
+
+    // MARK: - Undo taken
+
+    /// Reverses a single markTaken: deletes the DoseLog, restores pill count,
+    /// re-schedules the notification, and refreshes state.
+    func undoTaken(_ med: Medication, doseIndex: Int = 0) {
+        guard let log = todayLogs.first(where: {
+            $0.medication == med && $0.status == "taken" && Int($0.doseIndex) == doseIndex
+        }) else { return }
+
+        // Restore pill count
+        if let remaining = med.pillsRemaining?.intValue {
+            med.pillsRemaining = NSNumber(value: remaining + med.quantityPerDose)
+        }
+
+        viewContext.delete(log)
+        save()
+        fetchTodayLogs()
+        updateBestStreak()
+        updateWidgetSnapshot()
+
+        // Re-schedule the notification for this dose
+        NotificationManager.shared.scheduleNotification(for: med)
     }
 
     // MARK: - Streak
@@ -316,9 +425,9 @@ final class MedicationStore: ObservableObject {
         var streak    = 0
         var checkDate = cal.startOfDay(for: DebugDateManager.shared.currentDate)
 
-        // If today still has pending meds, start looking from yesterday so the
+        // If today still has pending doses, start looking from yesterday so the
         // streak doesn't drop to 0 mid-day while the user is still taking meds.
-        if takenTodayCount < scheduledTodayMeds.count {
+        if takenTodayCount < scheduledTodayCount {
             checkDate = cal.date(byAdding: .day, value: -1, to: checkDate)!
         }
 
@@ -478,6 +587,7 @@ final class MedicationStore: ObservableObject {
 
         save()
         fetchMedications()
+        updateWidgetSnapshot()
         NotificationManager.shared.scheduleNotification(for: med)
     }
 
@@ -499,6 +609,7 @@ final class MedicationStore: ObservableObject {
 
         save()
         fetchMedications()
+        updateWidgetSnapshot()
         NotificationManager.shared.cancelAllNotifications(for: med)
         NotificationManager.shared.scheduleNotification(for: med)
     }
@@ -510,6 +621,7 @@ final class MedicationStore: ObservableObject {
         med.isActive = false
         save()
         fetchMedications()
+        updateWidgetSnapshot()
     }
 
     // MARK: - Persistence

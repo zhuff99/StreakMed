@@ -63,6 +63,11 @@ struct HistoryView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 28)
 
+                // Badge shelf
+                BadgeShelf()
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 28)
+
                 // Today's log
                 SectionHeader(title: "Today's Log")
                     .padding(.horizontal, 24)
@@ -430,7 +435,6 @@ struct MonthCalendarView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .sheet(item: $detailDay) { wrapper in
             DayDetailSheet(date: wrapper.date)
                 .environmentObject(store)
@@ -550,5 +554,102 @@ struct TodayLogRow: View {
         let f = DateFormatter(); f.timeStyle = .short
         if let t = store.takenTimeToday(med) { return f.string(from: t) }
         return med.scheduledTime.map { f.string(from: $0) } ?? "—"
+    }
+}
+
+// MARK: - Badge Shelf
+
+struct BadgeShelf: View {
+    @EnvironmentObject var store: MedicationStore
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("BADGES")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(AppTheme.textMuted)
+                .tracking(0.8)
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(MedicationStore.badgeMilestones, id: \.self) { milestone in
+                    BadgeTile(
+                        milestone: milestone,
+                        earnedDate: store.earnedBadges[milestone]
+                    )
+                }
+            }
+        }
+        .padding(18)
+        .background(AppTheme.surface)
+        .cornerRadius(20)
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppTheme.border, lineWidth: 1))
+    }
+}
+
+// MARK: - Badge Tile
+
+private struct BadgeTile: View {
+    let milestone: Int
+    let earnedDate: Date?
+
+    private var isEarned: Bool { earnedDate != nil }
+    private var info: (name: String, icon: String) { MedicationStore.badgeInfo(for: milestone) }
+
+    private var badgeColor: Color {
+        switch milestone {
+        case 7:   return Color(hex: "FF6B35")
+        case 14:  return Color(hex: "FFD166")
+        case 30:  return Color(hex: "4FFFB0")
+        case 60:  return Color(hex: "5B8BFF")
+        case 90:  return Color(hex: "C97BFF")
+        case 180: return Color(hex: "FF4F8A")
+        case 365: return Color(hex: "FFD700")
+        default:  return AppTheme.accent
+        }
+    }
+
+    private var earnedDateString: String {
+        guard let date = earnedDate else { return "" }
+        let f = DateFormatter(); f.dateFormat = "M/d/yy"
+        return f.string(from: date)
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                // Background circle
+                Circle()
+                    .fill(isEarned ? badgeColor.opacity(0.18) : AppTheme.surfaceAlt)
+                    .overlay(
+                        Circle()
+                            .stroke(isEarned ? badgeColor.opacity(0.5) : AppTheme.border, lineWidth: 1.5)
+                    )
+                    .frame(width: 52, height: 52)
+
+                if isEarned {
+                    Image(systemName: info.icon)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(badgeColor)
+                } else {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(AppTheme.textDim)
+                }
+            }
+
+            // Label
+            Text(isEarned ? info.name : "\(milestone)d")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(isEarned ? AppTheme.text : AppTheme.textDim)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            // Date or target
+            Text(isEarned ? earnedDateString : "\(milestone) days")
+                .font(.system(size: 8))
+                .foregroundColor(isEarned ? AppTheme.textMuted : AppTheme.textDim)
+                .lineLimit(1)
+        }
     }
 }

@@ -177,6 +177,9 @@ CoreData/
 └── StreakMed.xcdatamodeld/
     └── StreakMed.xcdatamodel/
         └── contents
+
+StreakMedWidget/
+└── StreakMedWidget.swift             Widget extension (small, medium, lock screen)
 ```
 
 ---
@@ -217,6 +220,7 @@ CoreData/
 - Multi-dose medications generate one card per dose, each with its own Take button
 - Card subtitle shows dose and time on line one, and a "Dose N of M" badge on line two
 - Taking a dose immediately cancels that dose's notification and re-queues it for tomorrow
+- **Undo toast** — after taking a dose (or Mark All Taken), a 4-second toast appears with an Undo button that restores the dose, re-increments pill count, and re-schedules the notification
 - Progress ring and streak counter use SF Symbols
 - Empty state shows a centered SF Symbol illustration
 
@@ -245,8 +249,10 @@ CoreData/
 
 ## Settings
 
-- **Appearance** — System or Always Dark, persisted with AppStorage
-- **Notifications** — enable/disable reminders with lead time options: At time, 5, 10, 15, or 30 min early
+- **Appearance** — Light, System, or Dark mode with fully adaptive color palette
+- **Notifications** — enable/disable reminders with lead time options: At time, 5, 10, 15, or 30 min early; optional missed-dose follow-up fires 1–4 hours after the scheduled time if the dose hasn't been logged
+- **Privacy** — optional Face ID / Passcode lock
+- **Data** — Export dose history as CSV or PDF
 - **About** — Rate StreakMed, Send Feedback, Privacy Policy link, app version
 
 ## Dev Tools
@@ -264,9 +270,17 @@ CoreData/
 - Configurable lead time offset applied to all triggers
 - Multi-dose notification titles include "Dose N of M" for context
 
+## Widgets
+
+- **Small (2×2)** — today's dose count (X/Y taken), progress bar, and streak counter
+- **Medium (4×2)** — split layout with progress + streak on the left, next upcoming medication on the right
+- **Lock screen circular** — dose fraction or checkmark when all done
+- **Lock screen rectangular** — single-line summary with dose count and streak
+- Data shared via App Groups UserDefaults; main app writes a snapshot on every state change and triggers WidgetKit timeline reload
+
 ## Onboarding
 
-- 3-step flow: Welcome, Notifications permission, Add first medication
+- 4-step flow: Welcome, Notifications permission, Add first medication, Face ID opt-in
 - Fully responsive on iPad 13-inch using horizontalSizeClass
 - All icons use SF Symbols in tinted circles
 
@@ -292,14 +306,21 @@ What the policy covers:
 
 ### Planned (discussed)
 
-- [ ] **Streak milestone badges** — award badges at 7, 14, 30, 60, 90, 180, and 365 day streaks with trophy icons, a celebratory unlock animation, and a badge shelf in History or Settings showing locked/unlocked badges with dates earned
 - [ ] **Adherence score** — a quietly incrementing score that goes up each time a dose is taken and when a full day is completed, displayed subtly on the Today tab (intentionally understated to suit the target audience rather than feeling like a video game)
+
+### Completed
+
+- [x] **Widget extension** — small, medium, and lock screen widgets with live data via App Groups
+- [x] **Export history** — dose log as CSV or PDF for doctor visits
+- [x] **Face ID / Passcode lock** — optional biometric lock with onboarding opt-in
+- [x] **Undo mark taken** — 4-second undo toast for single doses and Mark All Taken
+- [x] **Light mode** — full adaptive color palette with Light, System, and Dark options in Settings
+- [x] **Streak milestone badges** — badges awarded at 3, 7, 14, 30, 60, 90, 180, 365 day streaks with full-screen unlock animation and badge shelf in History
+- [x] **Missed dose follow-up notifications** — optional second reminder fires X hours after scheduled time if the dose hasn't been logged; cancelled automatically when dose is taken; configurable delay (1–4 hours) in Settings
 
 ### Backlog
 
-- [ ] Widget extension — home screen glanceable dose status
 - [ ] iCloud sync — sync medications and history across devices
-- [ ] Export history — dose log as CSV or PDF for doctor visits
 - [ ] Apple Health integration — write dose events to HealthKit
 - [ ] Siri Shortcuts — "Hey Siri, I took my morning meds"
 - [ ] Lock screen and Dynamic Island — live activity showing next upcoming dose

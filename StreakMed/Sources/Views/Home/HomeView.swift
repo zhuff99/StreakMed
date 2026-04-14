@@ -9,6 +9,11 @@ struct HomeView: View {
     @State private var justTakenID: UUID?        // set briefly when a Take button is pressed — drives the scale animation
     @State private var showAllDoneBanner = false // shown for 2.5 s after "Mark All Taken"
 
+    // Undo state
+    @State private var undoItems: [(med: Medication, doseIndex: Int)] = []
+    @State private var showUndoToast = false
+    @State private var undoWorkItem: DispatchWorkItem?
+
     var body: some View {
         ZStack(alignment: .bottom) {
             ScrollView {
@@ -88,11 +93,45 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Floating overlay (Mark All button / All Done banner)
+    // MARK: - Floating overlay (Mark All button / Undo toast / All Done banner)
 
     @ViewBuilder
     private var floatingOverlay: some View {
-        if !store.pendingDoseItems.isEmpty {
+        if showUndoToast {
+            // Undo toast — shown for 4 s after taking a dose or marking all
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(AppTheme.accent)
+                Text(undoItems.count == 1 ? "Dose taken" : "\(undoItems.count) doses taken")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AppTheme.text)
+                Spacer()
+                Button { performUndo() } label: {
+                    Text("Undo")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(AppTheme.accentFG)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(AppTheme.accent)
+                        .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(AppTheme.surface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(AppTheme.border, lineWidth: 1)
+            )
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.4), radius: 16, x: 0, y: 6)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+
+        } else if !store.pendingDoseItems.isEmpty {
             Button { showConfirmSheet = true } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "checkmark")
@@ -143,7 +182,8 @@ struct HomeView: View {
 
     /// Handles a single "Take" button tap.
     /// Fires haptic feedback, briefly scales the button via justTakenID,
-    /// then after a short delay marks the dose and resets the animation state.
+    /// then after a short delay marks the dose, resets the animation state,
+    /// and shows an undo toast.
     private func handleTake(_ item: DoseItem) {
         guard let id = item.medication.id else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -152,21 +192,61 @@ struct HomeView: View {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                 store.markTaken(item.medication, doseIndex: item.doseIndex)
                 justTakenID = nil
+                showUndoToast(for: [(item.medication, item.doseIndex)])
             }
         }
     }
 
     /// Handles "Mark All Taken" confirmation.
-    /// Fires a success haptic, marks all pending doses, shows the celebratory banner,
-    /// then auto-dismisses the banner after 2.5 seconds.
+    /// Fires a success haptic, marks all pending doses, and shows an undo toast.
     private func handleMarkAll() {
+        let items = store.pendingDoseItems.map { ($0.medication, $0.doseIndex) }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
             store.markAllTaken()
-            showAllDoneBanner = true
+            showUndoToast(for: items)
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            withAnimation { showAllDoneBanner = false }
+    }
+
+    // MARK: - Undo
+
+    /// Shows the undo toast for the given items, auto-dismissing after 4 seconds.
+    private func showUndoToast(for items: [(Medication, Int)]) {
+        // Cancel any existing undo timer
+        undoWorkItem?.cancel()
+        undoItems = items
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            showUndoToast = true
+            showAllDoneBanner = false
+        }
+        // Auto-dismiss after 4 seconds
+        let work = DispatchWorkItem {
+            withAnimation(.easeOut(duration: 0.25)) {
+                showUndoToast = false
+                undoItems = []
+                // Show "All done" banner if everything is taken
+                if store.pendingDoseItems.isEmpty && !store.medications.isEmpty {
+                    withAnimation { showAllDoneBanner = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        withAnimation { showAllDoneBanner = false }
+                    }
+                }
+            }
+        }
+        undoWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0, execute: work)
+    }
+
+    /// Undoes the last take action — restores all doses in the undo buffer.
+    private func performUndo() {
+        undoWorkItem?.cancel()
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            for (med, idx) in undoItems {
+                store.undoTaken(med, doseIndex: idx)
+            }
+            undoItems = []
+            showUndoToast = false
         }
     }
 }

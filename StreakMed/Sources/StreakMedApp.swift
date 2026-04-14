@@ -15,7 +15,11 @@ struct StreakMedApp: App {
     }
 
     private var preferredScheme: ColorScheme? {
-        appTheme == "system" ? nil : .dark
+        switch appTheme {
+        case "light": return .light
+        case "dark":  return .dark
+        default:      return nil   // "system" — follow device setting
+        }
     }
 
     var body: some Scene {
@@ -35,12 +39,15 @@ struct StreakMedApp: App {
 
     // MARK: - Global UIKit appearance tweaks
     private func configureAppearance() {
-        // Navigation bar
+        // Navigation bar — uses dynamic colours that resolve per-trait automatically
+        let dynamicBg = UIColor(AppTheme.bg)
+        let dynamicText = UIColor(AppTheme.text)
+
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithOpaqueBackground()
-        navAppearance.backgroundColor = UIColor(AppTheme.bg)
-        navAppearance.titleTextAttributes       = [.foregroundColor: UIColor(AppTheme.text)]
-        navAppearance.largeTitleTextAttributes  = [.foregroundColor: UIColor(AppTheme.text)]
+        navAppearance.backgroundColor              = dynamicBg
+        navAppearance.titleTextAttributes          = [.foregroundColor: dynamicText]
+        navAppearance.largeTitleTextAttributes     = [.foregroundColor: dynamicText]
         UINavigationBar.appearance().standardAppearance   = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
         UINavigationBar.appearance().compactAppearance    = navAppearance

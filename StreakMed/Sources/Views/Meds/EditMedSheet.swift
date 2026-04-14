@@ -372,7 +372,6 @@ struct EditMedSheet: View {
                                 .datePickerStyle(.wheel)
                                 .labelsHidden()
                                 .frame(maxWidth: .infinity)
-                                .colorScheme(.dark)
                         } else {
                             VStack(spacing: 8) {
                                 ForEach(scheduledTimes.indices, id: \.self) { i in
@@ -477,7 +476,6 @@ struct EditMedSheet: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     private func shortTime(_ date: Date) -> String {

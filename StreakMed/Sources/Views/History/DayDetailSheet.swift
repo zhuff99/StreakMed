@@ -120,7 +120,6 @@ struct DayDetailSheet: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Helpers

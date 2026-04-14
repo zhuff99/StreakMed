@@ -32,7 +32,8 @@ final class NotificationManager: NSObject {
 
     // MARK: - Schedule
 
-    /// Schedules one daily repeating notification per dose time for the given medication.
+    /// Schedules one daily repeating notification per dose time for the given medication,
+    /// plus an optional missed-dose follow-up if the user hasn't logged the dose after X hours.
     func scheduleNotification(for med: Medication) {
         guard let name = med.name, let baseID = med.notificationID else { return }
 
@@ -70,16 +71,56 @@ final class NotificationManager: NSObject {
                     print("[StreakMed] Notification schedule error (dose \(index)): \(error)")
                 }
             }
+
+            // Schedule missed-dose follow-up if the feature is enabled
+            scheduleFollowUp(for: med, doseIndex: index, scheduledTime: time, baseID: baseID,
+                             name: name, totalDoses: times.count)
         }
     }
 
+    /// Schedules a daily repeating follow-up notification fired X hours after the dose time.
+    /// Cancelled immediately when the user marks the dose as taken.
+    private func scheduleFollowUp(for med: Medication, doseIndex: Int, scheduledTime: Date,
+                                  baseID: String, name: String, totalDoses: Int) {
+        guard UserDefaults.standard.bool(forKey: "missedDoseReminderEnabled") else { return }
+
+        let followUpHours = max(1, UserDefaults.standard.integer(forKey: "missedDoseFollowUpHours") == 0
+            ? 2
+            : UserDefaults.standard.integer(forKey: "missedDoseFollowUpHours"))
+        let cal = Calendar.current
+
+        guard let followUpTime = cal.date(byAdding: .hour, value: followUpHours, to: scheduledTime) else { return }
+
+        let content   = UNMutableNotificationContent()
+        content.title = totalDoses > 1
+            ? "Still haven't taken \(name) · Dose \(doseIndex + 1)"
+            : "Still haven't taken \(name)"
+        content.body  = "Don't let your streak slip — log your dose when you're ready."
+        content.sound = .default
+        content.badge = 1
+
+        let comps   = cal.dateComponents([.hour, .minute], from: followUpTime)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+        let request = UNNotificationRequest(
+            identifier: followUpNotifID(baseID: baseID, doseIndex: doseIndex),
+            content:    content,
+            trigger:    trigger
+        )
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+
     /// Cancels today's notification for a specific dose and reschedules it for tomorrow.
+    /// Also cancels today's missed-dose follow-up (dose was taken, so no follow-up needed).
     /// Call this as soon as the user marks that individual dose as taken.
     func cancelTodayNotification(for med: Medication, doseIndex: Int = 0) {
         guard let name = med.name, let baseID = med.notificationID else { return }
 
         let notifID = doseNotifID(baseID: baseID, doseIndex: doseIndex)
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notifID])
+        // Cancel both the regular reminder and the missed-dose follow-up for today
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [
+            notifID,
+            followUpNotifID(baseID: baseID, doseIndex: doseIndex)
+        ])
 
         let times = med.doseTimesArray.isEmpty
             ? (med.scheduledTime.map { [$0] } ?? [])
@@ -127,14 +168,23 @@ final class NotificationManager: NSObject {
 
         let request = UNNotificationRequest(identifier: notifID, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+
+        // Reschedule tomorrow's missed-dose follow-up (repeating daily trigger is fine here
+        // since the dose has been taken today — it will only bother the user tomorrow if they forget)
+        scheduleFollowUp(for: med, doseIndex: doseIndex, scheduledTime: time,
+                         baseID: baseID, name: name,
+                         totalDoses: med.doseTimesArray.isEmpty ? 1 : med.doseTimesArray.count)
     }
 
     /// Cancels ALL notifications for a medication (e.g. when deleting or editing it).
     func cancelAllNotifications(for med: Medication) {
         guard let baseID = med.notificationID else { return }
-        // Cancel legacy single-dose ID + per-dose IDs (cover up to 10 doses)
+        // Cancel legacy single-dose ID + per-dose IDs + follow-ups (cover up to 10 doses)
         var ids = [baseID]
-        for i in 0..<10 { ids.append(doseNotifID(baseID: baseID, doseIndex: i)) }
+        for i in 0..<10 {
+            ids.append(doseNotifID(baseID: baseID, doseIndex: i))
+            ids.append(followUpNotifID(baseID: baseID, doseIndex: i))
+        }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
     }
 
@@ -189,6 +239,10 @@ final class NotificationManager: NSObject {
 
     private func doseNotifID(baseID: String, doseIndex: Int) -> String {
         "\(baseID)_dose_\(doseIndex)"
+    }
+
+    private func followUpNotifID(baseID: String, doseIndex: Int) -> String {
+        "\(baseID)_dose_\(doseIndex)_followup"
     }
 
     private func notifTitle(name: String, doseIndex: Int, totalDoses: Int, leadMinutes: Int) -> String {

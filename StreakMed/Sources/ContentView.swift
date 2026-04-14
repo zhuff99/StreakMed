@@ -42,6 +42,10 @@ struct ContentView: View {
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
     @State private var isLocked = false
 
+    // Badge unlock overlay
+    @State private var showBadgeUnlock = false
+    @State private var unlockedMilestone: Int = 0
+
     init() {
         _store = StateObject(
             wrappedValue: MedicationStore(context: PersistenceController.shared.container.viewContext)
@@ -67,6 +71,16 @@ struct ContentView: View {
 
             // Custom tab bar
             CustomTabBar(selectedTab: $selectedTab)
+
+            // Badge unlock overlay — shown when a new streak milestone is reached.
+            if showBadgeUnlock {
+                BadgeUnlockOverlay(milestone: unlockedMilestone) {
+                    showBadgeUnlock = false
+                    store.newlyUnlockedBadge = nil
+                }
+                .transition(.opacity)
+                .zIndex(9)
+            }
 
             // Lock screen overlay — sits above everything so no medication
             // data is visible until the user authenticates.
@@ -100,6 +114,13 @@ struct ContentView: View {
             if today != lastKnownDay {
                 lastKnownDay = today
                 store.refresh()
+            }
+        }
+        // Show badge unlock overlay when a new milestone is reached
+        .onChange(of: store.newlyUnlockedBadge) { milestone in
+            if let milestone = milestone {
+                unlockedMilestone = milestone
+                withAnimation(.easeOut(duration: 0.3)) { showBadgeUnlock = true }
             }
         }
         // Navigate to the Meds tab when the empty-state "Add Medications" button is tapped

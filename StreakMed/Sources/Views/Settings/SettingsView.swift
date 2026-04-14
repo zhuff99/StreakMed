@@ -6,16 +6,26 @@ struct SettingsView: View {
     @EnvironmentObject var store: MedicationStore
 
     // All persisted with @AppStorage so they survive app restarts
-    @AppStorage("notificationsEnabled")  var notificationsEnabled  = true
-    @AppStorage("snoozeEnabled")         var snoozeEnabled          = false
-    @AppStorage("reminderLeadMinutes")   var reminderLeadMinutes    = 0   // minutes before scheduled time to notify
-    @AppStorage("appTheme")              var appTheme               = "dark"
+    @AppStorage("notificationsEnabled")      var notificationsEnabled      = true
+    @AppStorage("snoozeEnabled")             var snoozeEnabled              = false
+    @AppStorage("reminderLeadMinutes")       var reminderLeadMinutes        = 0
+    @AppStorage("missedDoseReminderEnabled") var missedDoseReminderEnabled  = true
+    @AppStorage("missedDoseFollowUpHours")   var missedDoseFollowUpHours    = 2
+    @AppStorage("appTheme")                  var appTheme                   = "dark"
 
     @State private var notifStatus: UNAuthorizationStatus = .notDetermined  // live iOS permission status
     @State private var showPermissionAlert = false  // shown when toggling on but permission is denied
     @State private var showExportPicker    = false  // confirmation dialog: CSV vs PDF
     @State private var isExporting        = false  // prevents double-taps while generating
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
+
+    private var themeSubtitle: String {
+        switch appTheme {
+        case "light":  return "Always uses light mode"
+        case "dark":   return "Always uses dark mode"
+        default:       return "Follows your device setting"
+        }
+    }
 
     /// Options for the "remind me X minutes early" preference.
     private let leadOptions: [(label: String, value: Int)] = [
@@ -24,6 +34,14 @@ struct SettingsView: View {
         ("10 min early",      10),
         ("15 min early",      15),
         ("30 min early",      30),
+    ]
+
+    /// Options for how long after the scheduled time to send a missed dose follow-up.
+    private let followUpOptions: [(label: String, value: Int)] = [
+        ("1 hour after",  1),
+        ("2 hours after", 2),
+        ("3 hours after", 3),
+        ("4 hours after", 4),
     ]
 
     var body: some View {
@@ -44,17 +62,18 @@ struct SettingsView: View {
                             Text("App Theme")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(AppTheme.text)
-                            Text(appTheme == "system" ? "Follows your device setting" : "Always uses dark mode")
+                            Text(themeSubtitle)
                                 .font(.system(size: 11))
                                 .foregroundColor(AppTheme.textDim)
                         }
                         Spacer()
                         Picker("", selection: $appTheme) {
+                            Text("Light").tag("light")
                             Text("System").tag("system")
                             Text("Dark").tag("dark")
                         }
                         .pickerStyle(.segmented)
-                        .frame(width: 140)
+                        .frame(width: 200)
                     }
                     .padding(.vertical, 8)
                 }
@@ -113,6 +132,68 @@ struct SettingsView: View {
                             } label: {
                                 HStack(spacing: 4) {
                                     Text(leadOptions.first { $0.value == reminderLeadMinutes }?.label ?? "At scheduled time")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(AppTheme.accent)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(AppTheme.accent)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(AppTheme.accentDim)
+                                .cornerRadius(8)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+
+                    Divider().background(AppTheme.border)
+                    SettingsToggleRow(
+                        label: "Missed dose reminders",
+                        sub:   "Follow-up if a dose isn't logged",
+                        isOn: Binding(
+                            get: { missedDoseReminderEnabled },
+                            set: { newVal in
+                                missedDoseReminderEnabled = newVal
+                                NotificationManager.shared.rescheduleAll(
+                                    medications: store.medications
+                                )
+                            }
+                        )
+                    )
+
+                    if notificationsEnabled && missedDoseReminderEnabled {
+                        Divider().background(AppTheme.border)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Follow-up after")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(AppTheme.text)
+                                Text(followUpOptions.first { $0.value == missedDoseFollowUpHours }?.label ?? "2 hours after")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(AppTheme.textDim)
+                            }
+                            Spacer()
+                            Menu {
+                                ForEach(followUpOptions, id: \.value) { opt in
+                                    Button {
+                                        missedDoseFollowUpHours = opt.value
+                                        NotificationManager.shared.rescheduleAll(
+                                            medications: store.medications
+                                        )
+                                    } label: {
+                                        HStack {
+                                            Text(opt.label)
+                                            if opt.value == missedDoseFollowUpHours {
+                                                Spacer()
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(followUpOptions.first { $0.value == missedDoseFollowUpHours }?.label ?? "2 hours after")
                                         .font(.system(size: 13, weight: .medium))
                                         .foregroundColor(AppTheme.accent)
                                     Image(systemName: "chevron.up.chevron.down")
@@ -417,6 +498,7 @@ struct DevToolsCard: View {
     @EnvironmentObject var store: MedicationStore
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showFullResetConfirm = false
+    @State private var simulateStreakDays = 7
 
     private var dateFormatter: DateFormatter {
         let f = DateFormatter()
@@ -520,6 +602,79 @@ struct DevToolsCard: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
+
+            Divider().background(AppTheme.border)
+
+            // Badge testing
+            Text("Badge Testing")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(AppTheme.textMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 6)
+
+            HStack(spacing: 10) {
+                DevButton(label: "Next Badge", color: Color(hex: "C97BFF")) {
+                    // Award the next unearned milestone in order
+                    let sorted = MedicationStore.badgeMilestones.sorted()
+                    if let next = sorted.first(where: { store.earnedBadges[$0] == nil }) {
+                        store.earnedBadges[next] = Date()
+                        store.saveBadgesPublic()
+                        store.newlyUnlockedBadge = next
+                    }
+                }
+                DevButton(label: "All Badges", color: Color(hex: "FFD700")) {
+                    for milestone in MedicationStore.badgeMilestones {
+                        if store.earnedBadges[milestone] == nil {
+                            store.earnedBadges[milestone] = Date()
+                        }
+                    }
+                    store.saveBadgesPublic()
+                    // Show the highest badge as the unlock overlay
+                    store.newlyUnlockedBadge = MedicationStore.badgeMilestones.max()
+                }
+                DevButton(label: "Clear Badges", color: AppTheme.missed) {
+                    store.earnedBadges.removeAll()
+                    store.saveBadgesPublic()
+                    store.newlyUnlockedBadge = nil
+                }
+            }
+            .padding(.vertical, 4)
+
+            Divider().background(AppTheme.border)
+
+            // Simulate streak — backfills dose logs so the real streak
+            // detection path fires and awards badges organically.
+            Text("Simulate Streak (real code path)")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(AppTheme.textMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 6)
+
+            HStack(spacing: 12) {
+                Picker("Days", selection: $simulateStreakDays) {
+                    ForEach([3, 7, 14, 30, 60, 90, 180, 365], id: \.self) { d in
+                        Text("\(d)d").tag(d)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accentColor(AppTheme.accent)
+
+                DevButton(label: "Simulate", color: AppTheme.accent) {
+                    simulateStreak(days: simulateStreakDays)
+                }
+
+                DevButton(label: "Clear Logs", color: AppTheme.warn) {
+                    clearAllLogs()
+                    store.earnedBadges.removeAll()
+                    store.saveBadgesPublic()
+                    store.newlyUnlockedBadge = nil
+                    store.bestStreak = 0
+                    UserDefaults.standard.set(0, forKey: "bestStreak")
+                    debug.reset()  // return debug clock to real today
+                    store.refresh()
+                }
+            }
+            .padding(.vertical, 4)
 
             Divider().background(AppTheme.border)
 
@@ -703,6 +858,68 @@ struct DevToolsCard: View {
         try? store.viewContext.save()
     }
 
+    /// Advances the debug date N days into the future and backfills "taken"
+    /// DoseLogs for every day leading up to the new "today". This mirrors
+    /// what a real user's data would look like after N perfect days, and lets
+    /// the streak calculator + badge-award code path run end-to-end.
+    ///
+    /// Stacking works: call twice to double the simulated streak length.
+    /// Use "Clear Logs" to wipe everything and start fresh.
+    private func simulateStreak(days: Int) {
+        let cal       = Calendar.current
+        let startDate = cal.startOfDay(for: debug.currentDate)
+
+        // Clear badges and best streak so they re-trigger through the real path
+        store.earnedBadges.removeAll()
+        store.saveBadgesPublic()
+        store.newlyUnlockedBadge = nil
+        store.bestStreak = 0
+        UserDefaults.standard.set(0, forKey: "bestStreak")
+
+        // Advance the debug clock N days forward
+        debug.advanceDays(days)
+        let newToday = cal.startOfDay(for: debug.currentDate)
+
+        // Backfill logs for every day from startDate up to (not including) newToday.
+        // Leaving today empty means takenTodayCount == 0, so calculateStreak starts
+        // from yesterday and counts all N filled days — giving exactly N.
+        var fillDate = startDate
+        while fillDate < newToday {
+            let nextDay = cal.date(byAdding: .day, value: 1, to: fillDate)!
+
+            for med in store.medications {
+                guard med.isScheduled(on: fillDate) else { continue }
+
+                let doseCount = max(1, med.doseTimesArray.count)
+                for doseIdx in 0..<doseCount {
+                    let check: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
+                    check.predicate = NSPredicate(
+                        format: "medication == %@ AND scheduledDate >= %@ AND scheduledDate < %@ AND status == 'taken' AND doseIndex == %d",
+                        med, fillDate as NSDate, nextDay as NSDate, doseIdx
+                    )
+                    if (try? store.viewContext.count(for: check)) ?? 0 > 0 { continue }
+
+                    let log = DoseLog(context: store.viewContext)
+                    log.medication    = med
+                    log.doseIndex     = Int16(doseIdx)
+                    log.scheduledDate = fillDate
+                    log.status        = "taken"
+                }
+            }
+            fillDate = nextDay
+        }
+        try? store.viewContext.save()
+        store.refresh()
+    }
+
+    /// Deletes every DoseLog in the store (for resetting simulated streaks).
+    private func clearAllLogs() {
+        let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
+        let logs = (try? store.viewContext.fetch(req)) ?? []
+        logs.forEach { store.viewContext.delete($0) }
+        try? store.viewContext.save()
+    }
+
     private func fullReset() {
         // 1. Cancel all scheduled notifications
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
@@ -720,10 +937,16 @@ struct DevToolsCard: View {
         // 4. Save CoreData
         try? store.viewContext.save()
 
-        // 5. Reset debug date to real today
+        // 5. Clear earned badges and best streak
+        store.earnedBadges.removeAll()
+        store.saveBadgesPublic()
+        store.bestStreak = 0
+        UserDefaults.standard.set(0, forKey: "bestStreak")
+
+        // 6. Reset debug date to real today
         debug.reset()
 
-        // 6. Flip back to onboarding — triggers root view swap
+        // 7. Flip back to onboarding — triggers root view swap
         hasCompletedOnboarding = false
     }
 }
