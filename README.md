@@ -27,7 +27,7 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
       <sub><b>Today — Active</b></sub>
     </td>
     <td align="center">
-      <img src="Screenshots/Today_empty" width="160"/><br/>
+      <img src="Screenshots/Today_empty.png" width="160"/><br/>
       <sub><b>Medications</b></sub>
     </td>
   </tr>
@@ -37,7 +37,7 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
       <sub><b>Add Medication</b></sub>
     </td>
     <td align="center">
-      <img src="Screenshots/History.PNG" width="160"/><br/>
+      <img src="Screenshots/History.png" width="160"/><br/>
       <sub><b>History</b></sub>
     </td>
     <td align="center">
