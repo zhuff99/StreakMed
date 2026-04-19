@@ -2,7 +2,7 @@
 
 # StreakMed
 
-An iOS medication tracking app built with SwiftUI and CoreData. Helps users build consistent medication habits through streak tracking, flexible scheduling, per-dose notifications, and a clean dark-mode interface.
+An iOS medication tracking app built with SwiftUI and CoreData. Helps users build consistent medication habits through streak tracking, streak milestone badges, flexible scheduling, per-dose notifications, home screen widgets, and a fully adaptive light/dark interface.
 
 </div>
 
@@ -239,8 +239,10 @@ StreakMedWidget/
 
 ## History Tab
 
-- Monthly calendar with color-coded day indicators
-- Left-aligned vertical legend ordered: Today, Complete, Missed, Partial, Skipped
+- Stats grid: adherence rate, current streak, best streak, missed days this month
+- **Badge shelf** — 4-column grid showing all 8 milestones; earned badges display in full color with the date earned, locked ones show greyed out with a lock icon
+- Weekly strip and monthly calendar with color-coded day indicators (Complete, Missed, Partial, Skipped)
+- Left-aligned vertical legend
 - Tap any day to see a full breakdown of every dose for that date
 
 ## Settings
@@ -254,9 +256,11 @@ StreakMedWidget/
 ## Dev Tools
 
 - Seed sample medications — randomly picks 6 from a pool of 75+ real medications with realistic doses, types, and schedules. New random selection every tap.
-- Advance or reset the debug date
+- Advance or reset the debug date (back 1 day, forward 1 day, +7 days, reset to real today)
 - Clear today's dose logs
-- Full Reset — wipes all medications and history, cancels all notifications, returns to onboarding
+- Full Reset — wipes all medications, history, badges, and best streak; cancels all notifications; returns to onboarding
+- **Badge testing** — Next Badge (awards next unearned milestone in order with overlay), All Badges, Clear Badges
+- **Simulate Streak** — select a day count (3–365), advances the debug clock forward by N days and backfills real CoreData DoseLogs so the actual streak detection and badge-award code path runs end-to-end. Stackable. Use Clear Logs to reset.
 
 ## Notifications
 
