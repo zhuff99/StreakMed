@@ -378,8 +378,12 @@ struct StreakMedLockWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: StreakMedProvider()) { entry in
-            LockScreenWidgetView(entry: entry)
-                .containerBackground(.clear, for: .widget)
+            if #available(iOSApplicationExtension 17.0, *) {
+                LockScreenWidgetView(entry: entry)
+                    .containerBackground(.clear, for: .widget)
+            } else {
+                LockScreenWidgetView(entry: entry)
+            }
         }
         .configurationDisplayName("Meds (Lock Screen)")
         .description("Quick glance at today's medication progress.")
