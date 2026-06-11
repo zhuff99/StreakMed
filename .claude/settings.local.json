@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "Bash(sed -n 440,470p /Users/zachhuff/Desktop/StreakMed/StreakMed.xcodeproj/project.pbxproj)",
-      "Bash(sed -n 380,400p /Users/zachhuff/Desktop/StreakMed/StreakMed.xcodeproj/project.pbxproj)"
-    ]
-  }
-}

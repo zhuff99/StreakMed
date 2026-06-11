@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Xcode user-specific
+*.xcuserstate
+xcuserdata/
+
+# Claude Code / agent
+.claude/
+
+# Local-only docs & assets (kept on disk, not pushed)
+RELEASE_GUIDE.md
+CLAUDE.md
+medtracker-mockup_1.jsx
+Version 1 ScreenShots/
+Version 1.1 Screenshots/

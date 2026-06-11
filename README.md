@@ -15,38 +15,34 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
 <table>
   <tr>
     <td align="center">
-      <img src="Screenshots/Opening.png" width="160"/><br/>
+      <img src="Screenshots/Welcome.png" width="160"/><br/>
       <sub><b>Welcome</b></sub>
     </td>
     <td align="center">
-      <img src="Screenshots/FaceID.png" width="160"/><br/>
-      <sub><b>Face ID</b></sub>
-    </td>
-    <td align="center">
-      <img src="Screenshots/Today_Filled.png" width="160"/><br/>
-      <sub><b>Today — Active</b></sub>
-    </td>
-    <td align="center">
-      <img src="Screenshots/Today_empty.png" width="160"/><br/>
-      <sub><b>Today Tab Empty</b></sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="Screenshots/Setting.png" width="160"/><br/>
-      <sub><b>Settings</b></sub>
+      <img src="Screenshots/YourMeds.png" width="160"/><br/>
+      <sub><b>Today — Your Meds</b></sub>
     </td>
     <td align="center">
       <img src="Screenshots/History.png" width="160"/><br/>
       <sub><b>History</b></sub>
     </td>
     <td align="center">
-      <img src="Screenshots/Add_Medication.png" width="160"/><br/>
-      <sub><b>Add Medication</b></sub>
+      <img src="Screenshots/Calander.png" width="160"/><br/>
+      <sub><b>Calendar</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="Screenshots/MyMeds.png" width="160"/><br/>
+      <sub><b>My Medications</b></sub>
     </td>
     <td align="center">
-      <img src="Screenshots/Settings_17.png" width="160"/><br/>
-      <sub><b>Calander</b></sub>
+      <img src="Screenshots/Settings1.png" width="160"/><br/>
+      <sub><b>Settings</b></sub>
+    </td>
+    <td align="center">
+      <img src="Screenshots/Settings2.png" width="160"/><br/>
+      <sub><b>Settings — Privacy</b></sub>
     </td>
   </tr>
 </table>
