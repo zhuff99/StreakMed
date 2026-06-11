@@ -35,7 +35,7 @@ struct EditMedSheet: View {
 
     private let doseUnits = [
         "mg", "mcg", "g", "mL", "L", "IU",
-        "units", "tablets", "capsules", "drops", "patch", "puffs"
+        "units", "tablets", "capsules", "drops", "patch", "puffs", "%"
     ]
 
     init(med: Medication, onSave: @escaping (String, String, String, String, [Date], Set<Int>, Int?, String?) -> Void) {

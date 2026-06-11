@@ -98,7 +98,7 @@ struct AddMedSheet: View {
 
     private let doseUnits = [
         "mg", "mcg", "g", "mL", "L", "IU",
-        "units", "tablets", "capsules", "drops", "patch", "puffs"
+        "units", "tablets", "capsules", "drops", "patch", "puffs", "%"
     ]
 
     /// Save button is enabled only when the two required fields are filled and at least one day is selected.
@@ -138,8 +138,9 @@ struct AddMedSheet: View {
                                         selectedDBMed = med
                                         name = med.name
                                         suggestions = []
-                                        if med.strengths.count == 1,
-                                           let dose = med.doseComponents(for: med.strengths[0]) {
+                                        let tappable = med.tappableStrengths
+                                        if tappable.count == 1,
+                                           let dose = med.doseComponents(for: tappable[0]) {
                                             doseAmount = dose.amount
                                             doseUnit   = dose.unit
                                         }
@@ -172,10 +173,10 @@ struct AddMedSheet: View {
                         }
 
                         // Strength chips for the selected medication
-                        if let med = selectedDBMed, med.strengths.count > 1 {
+                        if let med = selectedDBMed, med.tappableStrengths.count > 1 {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    ForEach(med.strengths, id: \.self) { strength in
+                                    ForEach(med.tappableStrengths, id: \.self) { strength in
                                         let isActive = isStrengthSelected(strength, med: med)
                                         Button {
                                             if let dose = med.doseComponents(for: strength) {

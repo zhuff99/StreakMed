@@ -22,21 +22,29 @@ struct MedDBEntry: Decodable, Identifiable, Hashable {
         }
     }
 
-    /// Splits a strength like "10 mg" / "2.5 mg/ml" into AddMedSheet's
-    /// amount + unit fields. Returns nil when it doesn't parse cleanly.
+    /// Splits a strength like "10 mg" / "2.5 mg/ml" / "5%" / "1-10%" into
+    /// AddMedSheet's amount + unit fields. Returns nil when it doesn't parse,
+    /// in which case no chip should be shown for that strength.
     func doseComponents(for strength: String) -> (amount: String, unit: String)? {
-        let pattern = #"^([\d,]+(?:\.\d+)?)\s*(mg|mcg|g|ml|iu|units?)\b"#
+        let pattern = #"^([\d,]+(?:\.\d+)?(?:\s*-\s*[\d,]+(?:\.\d+)?)?)\s*(mg|mcg|g|ml|iu|units?|%)"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
               let match = regex.firstMatch(in: strength, range: NSRange(strength.startIndex..., in: strength)),
               let amountRange = Range(match.range(at: 1), in: strength),
               let unitRange   = Range(match.range(at: 2), in: strength)
         else { return nil }
-        let amount = String(strength[amountRange]).replacingOccurrences(of: ",", with: "")
+        let amount = String(strength[amountRange])
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: " ", with: "")
         var unit = String(strength[unitRange]).lowercased()
         if unit == "ml" { unit = "mL" }
         if unit == "iu" { unit = "IU" }
         if unit == "unit" { unit = "units" }
         return (amount, unit)
+    }
+
+    /// Strengths that parse into dose fields — only these get chips.
+    var tappableStrengths: [String] {
+        s.filter { doseComponents(for: $0) != nil }
     }
 }
 
