@@ -224,8 +224,16 @@ final class MedicationStore: ObservableObject {
             else { continue }
 
             let doseIndex = action["doseIndex"] as? Int ?? 0
-            let takenAt   = (action["takenAt"] as? Double).map { Date(timeIntervalSince1970: $0) }
-                            ?? DebugDateManager.shared.currentDate
+            // The widget always records real-world time. If the dev-tools date
+            // simulator is active, remap onto the simulated "today" so the
+            // replayed dose appears on the day the app is displaying.
+            let takenAt: Date
+            if DebugDateManager.shared.overrideDate != nil {
+                takenAt = DebugDateManager.shared.currentDate
+            } else {
+                takenAt = (action["takenAt"] as? Double).map { Date(timeIntervalSince1970: $0) }
+                          ?? DebugDateManager.shared.currentDate
+            }
 
             // Skip if a log already exists for this med+dose on that day
             // (e.g. the user also marked it in-app before this replay ran).
@@ -291,9 +299,9 @@ final class MedicationStore: ObservableObject {
 
     func refresh() {
         fetchMedications()
-        processWidgetActions()   // replay any doses taken via the widget button
-        fetchTodayLogs()
-        updateBestStreak()
+        fetchTodayLogs()         // must precede replay — markTaken's double-log
+        processWidgetActions()   // guard reads todayLogs, which would otherwise
+        updateBestStreak()       // be stale and silently drop widget actions
         updateWidgetSnapshot()
     }
 
