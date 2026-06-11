@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 // MARK: - Shared constants
 
@@ -25,6 +26,8 @@ struct StreakMedEntry: TimelineEntry {
     let streak:      Int
     let nextMedName: String?
     let nextMedTime: Date?
+    var nextMedID:   String? = nil   // UUID string for the interactive Take button
+    var nextDoseIndex: Int   = 0
 
     static var placeholder: StreakMedEntry {
         StreakMedEntry(
@@ -52,14 +55,117 @@ private func readSnapshot() -> StreakMedEntry {
     let name    = defaults.string(forKey: "widget_next_name")
     let timeTI  = defaults.double(forKey: "widget_next_time")
     let time: Date? = timeTI > 0 ? Date(timeIntervalSince1970: timeTI) : nil
+
+    // First entry in the pending list drives the interactive Take button
+    var nextID: String? = nil
+    var nextIdx = 0
+    if let data    = defaults.data(forKey: "widget_pending"),
+       let pending = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]],
+       let first   = pending.first {
+        nextID  = first["id"] as? String
+        nextIdx = first["idx"] as? Int ?? 0
+    }
+
     return StreakMedEntry(
         date:        Date(),
         takenCount:  taken,
         totalCount:  total,
         streak:      streak,
         nextMedName: name,
-        nextMedTime: time
+        nextMedTime: time,
+        nextMedID:   nextID,
+        nextDoseIndex: nextIdx
     )
+}
+
+// MARK: - Mark Taken Intent (iOS 17+ interactive widgets)
+
+/// Runs in the widget extension when the user taps "Take". The extension never
+/// touches CoreData — it queues the action in the App Group (the app replays it
+/// through the real markTaken() path on next activation, preserving this
+/// timestamp) and optimistically updates the snapshot so the widget reflects
+/// the tap instantly.
+@available(iOS 17.0, *)
+struct MarkDoseTakenIntent: AppIntent {
+    static var title: LocalizedStringResource = "Mark Dose Taken"
+    static var description = IntentDescription("Marks your next medication dose as taken.")
+
+    @Parameter(title: "Medication ID") var medID: String
+    @Parameter(title: "Dose Index")    var doseIndex: Int
+
+    init() {
+        medID     = ""
+        doseIndex = 0
+    }
+
+    init(medID: String, doseIndex: Int) {
+        self.medID     = medID
+        self.doseIndex = doseIndex
+    }
+
+    func perform() async throws -> some IntentResult {
+        guard !medID.isEmpty,
+              let defaults = UserDefaults(suiteName: widgetGroupID) else { return .result() }
+
+        // 1. Queue the action for the app to replay into CoreData
+        var actions = (defaults.data(forKey: "widget_actions"))
+            .flatMap { (try? JSONSerialization.jsonObject(with: $0)) as? [[String: Any]] } ?? []
+        let alreadyQueued = actions.contains {
+            $0["medID"] as? String == medID && ($0["doseIndex"] as? Int ?? 0) == doseIndex
+        }
+        if !alreadyQueued {
+            actions.append([
+                "medID":     medID,
+                "doseIndex": doseIndex,
+                "takenAt":   Date().timeIntervalSince1970,
+            ])
+            defaults.set(try? JSONSerialization.data(withJSONObject: actions), forKey: "widget_actions")
+        }
+
+        // 2. Optimistically update the snapshot so the widget shows the result
+        var pending = (defaults.data(forKey: "widget_pending"))
+            .flatMap { (try? JSONSerialization.jsonObject(with: $0)) as? [[String: Any]] } ?? []
+        pending.removeAll {
+            $0["id"] as? String == medID && ($0["idx"] as? Int ?? 0) == doseIndex
+        }
+        defaults.set(try? JSONSerialization.data(withJSONObject: pending), forKey: "widget_pending")
+        defaults.set(defaults.integer(forKey: "widget_taken") + 1, forKey: "widget_taken")
+
+        if let next = pending.first {
+            defaults.set(next["name"] as? String ?? "",   forKey: "widget_next_name")
+            defaults.set(next["time"] as? Double ?? 0,    forKey: "widget_next_time")
+        } else {
+            defaults.removeObject(forKey: "widget_next_name")
+            defaults.removeObject(forKey: "widget_next_time")
+        }
+
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+
+// MARK: - Take button (iOS 17+)
+
+@available(iOS 17.0, *)
+private struct TakeDoseButton: View {
+    let medID:     String
+    let doseIndex: Int
+
+    var body: some View {
+        Button(intent: MarkDoseTakenIntent(medID: medID, doseIndex: doseIndex)) {
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .bold))
+                Text("Take")
+                    .font(.system(size: 12, weight: .bold))
+            }
+            .foregroundColor(.black)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color.smAccent))
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 // MARK: - Timeline Provider
@@ -146,9 +252,15 @@ struct SmallWidgetView: View {
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.smMuted)
                         }
-                        Text("taken today")
-                            .font(.system(size: 11))
-                            .foregroundColor(.smMuted)
+                        if #available(iOSApplicationExtension 17.0, *),
+                           let medID = entry.nextMedID {
+                            TakeDoseButton(medID: medID, doseIndex: entry.nextDoseIndex)
+                                .padding(.top, 4)
+                        } else {
+                            Text("taken today")
+                                .font(.system(size: 11))
+                                .foregroundColor(.smMuted)
+                        }
                     }
                 }
 
@@ -265,6 +377,11 @@ struct MediumWidgetView: View {
                             Text(time, style: .time)
                                 .font(.system(size: 13, design: .monospaced))
                                 .foregroundColor(.smAccent)
+                            if #available(iOSApplicationExtension 17.0, *),
+                               let medID = entry.nextMedID {
+                                TakeDoseButton(medID: medID, doseIndex: entry.nextDoseIndex)
+                                    .padding(.top, 2)
+                            }
                         }
                     } else {
                         Text(entry.totalCount == 0 ? "No meds\nscheduled" : "Nothing\nleft today ✓")

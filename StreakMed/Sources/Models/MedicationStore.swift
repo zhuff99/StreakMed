@@ -187,7 +187,59 @@ final class MedicationStore: ObservableObject {
             defaults.removeObject(forKey: "widget_next_name")
             defaults.removeObject(forKey: "widget_next_time")
         }
+
+        // Full pending-dose list so the interactive widget (iOS 17+) can offer
+        // a "Take" button and advance to the following dose after a tap.
+        let pending: [[String: Any]] = pendingDoseItems.compactMap { item in
+            guard let id = item.medication.id?.uuidString else { return nil }
+            return [
+                "id":   id,
+                "idx":  item.doseIndex,
+                "name": item.medication.name ?? "",
+                "time": item.scheduledTime?.timeIntervalSince1970 ?? 0,
+            ]
+        }
+        defaults.set(try? JSONSerialization.data(withJSONObject: pending), forKey: "widget_pending")
+
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// Replays dose actions queued by the widget's "Take" button (iOS 17+).
+    /// The widget extension never writes to CoreData directly — it records
+    /// {medID, doseIndex, takenAt} in the App Group and we run each action
+    /// through the normal markTaken() path here, preserving the tap timestamp.
+    private func processWidgetActions() {
+        guard let defaults = UserDefaults(suiteName: Self.widgetGroupID),
+              let data     = defaults.data(forKey: "widget_actions"),
+              let actions  = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]],
+              !actions.isEmpty
+        else { return }
+
+        defaults.removeObject(forKey: "widget_actions")
+
+        for action in actions {
+            guard let idString = action["medID"] as? String,
+                  let medID    = UUID(uuidString: idString),
+                  let med      = medications.first(where: { $0.id == medID })
+            else { continue }
+
+            let doseIndex = action["doseIndex"] as? Int ?? 0
+            let takenAt   = (action["takenAt"] as? Double).map { Date(timeIntervalSince1970: $0) }
+                            ?? DebugDateManager.shared.currentDate
+
+            // Skip if a log already exists for this med+dose on that day
+            // (e.g. the user also marked it in-app before this replay ran).
+            let day = Calendar.current.startOfDay(for: takenAt)
+            let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
+            req.predicate = NSPredicate(
+                format: "medication == %@ AND doseIndex == %d AND scheduledDate == %@ AND status == %@",
+                med, doseIndex, day as NSDate, "taken"
+            )
+            req.fetchLimit = 1
+            if let existing = try? viewContext.fetch(req), !existing.isEmpty { continue }
+
+            markTaken(med, doseIndex: doseIndex, at: takenAt)
+        }
     }
 
     // MARK: - Skip-day helpers
@@ -239,6 +291,7 @@ final class MedicationStore: ObservableObject {
 
     func refresh() {
         fetchMedications()
+        processWidgetActions()   // replay any doses taken via the widget button
         fetchTodayLogs()
         updateBestStreak()
         updateWidgetSnapshot()
@@ -349,14 +402,16 @@ final class MedicationStore: ObservableObject {
 
     /// Records a dose as taken: creates a DoseLog entry, decrements pills on hand,
     /// fires a low-supply notification if needed, and cancels today's reminder.
-    func markTaken(_ med: Medication, doseIndex: Int = 0) {
+    /// `at` overrides the log timestamp — used when replaying widget actions so
+    /// the recorded time is the moment the user tapped, not when the app opened.
+    func markTaken(_ med: Medication, doseIndex: Int = 0, at time: Date? = nil) {
         guard !isTaken(med, doseIndex: doseIndex) else { return }   // prevent double-logging
 
         let log = DoseLog(context: viewContext)
         log.id            = UUID()
         log.medication    = med
         log.doseIndex     = Int16(doseIndex)
-        let now           = DebugDateManager.shared.currentDate
+        let now           = time ?? DebugDateManager.shared.currentDate
         log.takenAt       = now
         log.scheduledDate = Calendar.current.startOfDay(for: now)
         log.status        = "taken"
