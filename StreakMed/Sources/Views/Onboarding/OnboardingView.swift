@@ -225,7 +225,13 @@ struct OnboardingMedsSetup: View {
 
     private var isPad: Bool { sizeClass == .regular }
 
-    @State private var showAddSheet = false
+    @State private var showAddSheet    = false
+    @State private var showImportSheet = false
+
+    private var healthImportAvailable: Bool {
+        if #available(iOS 26.0, *) { return HealthMedImporter.isAvailable }
+        return false
+    }
 
     init(context: NSManagedObjectContext, onComplete: @escaping () -> Void) {
         _store      = StateObject(wrappedValue: MedicationStore(context: context))
@@ -300,6 +306,27 @@ struct OnboardingMedsSetup: View {
                                 .stroke(AppTheme.accent.opacity(0.35), lineWidth: 1)
                         )
                     }
+
+                    if healthImportAvailable {
+                        Button { showImportSheet = true } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "heart.text.square.fill")
+                                    .font(.system(size: isPad ? 22 : 18))
+                                    .foregroundColor(AppTheme.blue)
+                                Text("Import from Apple Health")
+                                    .font(.system(size: isPad ? 17 : 15, weight: .semibold))
+                                    .foregroundColor(AppTheme.blue)
+                                Spacer()
+                            }
+                            .padding(16)
+                            .background(AppTheme.blueDim)
+                            .cornerRadius(14)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(AppTheme.blue.opacity(0.35), lineWidth: 1)
+                            )
+                        }
+                    }
                 }
                 .frame(maxWidth: isPad ? 560 : .infinity)
                 .padding(.horizontal, 24)
@@ -354,6 +381,14 @@ struct OnboardingMedsSetup: View {
                     name: name, dose: dose, type: type, color: color,
                     scheduledTimes: times, scheduledDays: days, pillsRemaining: pills, notes: notes
                 )
+            }
+        }
+        .sheet(isPresented: $showImportSheet) {
+            if #available(iOS 26.0, *) {
+                HealthImportSheet()
+                    .environmentObject(store)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }

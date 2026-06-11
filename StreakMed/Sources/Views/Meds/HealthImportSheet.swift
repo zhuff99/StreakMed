@@ -20,11 +20,14 @@ enum HealthMedImporter {
 
     /// Requests read access to the user's Health medication list and returns
     /// active (non-archived) medications parsed into import candidates.
+    /// Medications use per-object authorization — the user picks which meds to
+    /// share in Apple's prompt. The standard requestAuthorization call raises
+    /// an unrecoverable NSException for this type.
     static func fetchCandidates(existingNames: Set<String>) async throws -> [HealthMedCandidate] {
         let store = HKHealthStore()
-        try await store.requestAuthorization(
-            toShare: [],
-            read: [HKObjectType.userAnnotatedMedicationType()]
+        try await store.requestPerObjectReadAuthorization(
+            for: HKObjectType.userAnnotatedMedicationType(),
+            predicate: nil
         )
 
         let meds = try await HKUserAnnotatedMedicationQueryDescriptor().result(for: store)
