@@ -23,15 +23,19 @@ An iOS medication tracking app built with SwiftUI and CoreData. Helps users buil
       <sub><b>Today — Your Meds</b></sub>
     </td>
     <td align="center">
+      <img src="Screenshots/Widgets.png" width="160"/><br/>
+      <sub><b>Widgets</b></sub>
+    </td>
+    <td align="center">
       <img src="Screenshots/History.png" width="160"/><br/>
       <sub><b>History</b></sub>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <img src="Screenshots/Calander.png" width="160"/><br/>
       <sub><b>Calendar</b></sub>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <img src="Screenshots/MyMeds.png" width="160"/><br/>
       <sub><b>My Medications</b></sub>
