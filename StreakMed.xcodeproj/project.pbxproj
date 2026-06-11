@@ -388,6 +388,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "StreakMed uses your camera to scan prescription labels.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "StreakMed uses Face ID to protect your medication data.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "StreakMed reads your medication list from Apple Health so you can import your medications without typing them in.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -425,6 +426,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "StreakMed uses your camera to scan prescription labels.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "StreakMed uses Face ID to protect your medication data.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "StreakMed reads your medication list from Apple Health so you can import your medications without typing them in.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

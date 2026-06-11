@@ -2,8 +2,14 @@ import SwiftUI
 
 struct MedsView: View {
     @EnvironmentObject var store: MedicationStore
-    @State private var showAddSheet = false
+    @State private var showAddSheet    = false
+    @State private var showImportSheet = false
     @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private var healthImportAvailable: Bool {
+        if #available(iOS 26.0, *) { return HealthMedImporter.isAvailable }
+        return false
+    }
 
     var body: some View {
         ScrollView {
@@ -20,6 +26,21 @@ struct MedsView: View {
                             .foregroundColor(AppTheme.textMuted)
                     }
                     Spacer()
+                    if healthImportAvailable {
+                        Button { showImportSheet = true } label: {
+                            Image(systemName: "heart.text.square")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(AppTheme.accent)
+                                .padding(10)
+                                .background(AppTheme.accentDim)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(AppTheme.accent.opacity(0.5), lineWidth: 1.5)
+                                )
+                                .cornerRadius(14)
+                        }
+                        .padding(.trailing, 8)
+                    }
                     if !store.medications.isEmpty {
                         Button { showAddSheet = true } label: {
                             Text("+ Add")
@@ -87,6 +108,14 @@ struct MedsView: View {
                     pillsRemaining: pills,
                     notes: notes
                 )
+            }
+        }
+        .sheet(isPresented: $showImportSheet) {
+            if #available(iOS 26.0, *) {
+                HealthImportSheet()
+                    .environmentObject(store)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
