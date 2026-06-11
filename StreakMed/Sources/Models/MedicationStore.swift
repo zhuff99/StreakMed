@@ -630,6 +630,12 @@ final class MedicationStore: ObservableObject {
     private func save() {
         guard viewContext.hasChanges else { return }
         do    { try viewContext.save() }
-        catch { print("[StreakMed] CoreData save error: \(error)") }
+        catch {
+            // Validation NSErrors embed full object descriptions (med names),
+            // so only log the details in debug builds.
+            #if DEBUG
+            print("[StreakMed] CoreData save error: \(error)")
+            #endif
+        }
     }
 }

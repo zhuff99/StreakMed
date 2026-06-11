@@ -422,10 +422,10 @@ struct SettingsToggleRow: View {
 // MARK: - Scanning Settings
 
 /// Card that lets the user enter their Claude API key for prescription scanning.
-/// The key is stored in @AppStorage (UserDefaults) so it persists across launches.
+/// The key lives in the Keychain (via APIKeyStore) — never UserDefaults.
 /// isRevealed toggles between SecureField (hidden) and TextField (visible).
 struct ScanningSettingsCard: View {
-    @AppStorage("claudeApiKey") private var apiKey: String = ""
+    @State private var apiKey: String = APIKeyStore.load()
     @State private var isRevealed = false
 
     var body: some View {
@@ -473,6 +473,9 @@ struct ScanningSettingsCard: View {
                 .background(AppTheme.surfaceAlt)
                 .cornerRadius(10)
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.border, lineWidth: 1))
+                .onChange(of: apiKey) { newValue in
+                    APIKeyStore.save(newValue)
+                }
 
                 if !apiKey.trimmingCharacters(in: .whitespaces).isEmpty {
                     HStack(spacing: 6) {

@@ -51,17 +51,33 @@ struct PersistenceController {
     // MARK: - Container
     let container: NSPersistentContainer
 
+    /// True if the on-disk store failed to open and the app fell back to an
+    /// in-memory store. Data isn't lost — the store file is left untouched on
+    /// disk for the next launch — but nothing will persist this session.
+    private(set) var loadFailed = false
+
     init(inMemory: Bool = false) {
         container = NSPersistentContainer(name: "StreakMed")
         if inMemory {
             container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
         }
-        container.loadPersistentStores { _, error in
-            if let error = error as NSError? {
-                // In production, handle gracefully instead of fatalError
-                fatalError("CoreData load error: \(error), \(error.userInfo)")
-            }
+
+        var loadError: Error?
+        container.loadPersistentStores { _, error in loadError = error }
+
+        if loadError != nil {
+            #if DEBUG
+            fatalError("CoreData load error: \(loadError!)")
+            #else
+            // A medication app must not crash-loop at launch. Fall back to an
+            // in-memory store so the UI still works; the original store file
+            // stays on disk untouched and is retried next launch.
+            loadFailed = true
+            container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
+            container.loadPersistentStores { _, _ in }
+            #endif
         }
+
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
     }

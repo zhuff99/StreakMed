@@ -89,6 +89,19 @@ struct ContentView: View {
                     .transition(.opacity)
                     .zIndex(10)
             }
+
+            // Privacy shield — iOS captures the app-switcher snapshot while the
+            // app is .inactive, before .background ever fires, so locking on
+            // .background alone still leaks the med list into the switcher.
+            if biometricLockEnabled && !isLocked && scenePhase != .active {
+                ZStack {
+                    AppTheme.bg.ignoresSafeArea()
+                    Image(systemName: "pills.fill")
+                        .font(.system(size: 44))
+                        .foregroundColor(AppTheme.accent)
+                }
+                .zIndex(11)
+            }
         }
         .ignoresSafeArea(.keyboard)
         // Lock when the app moves to the background; the lock screen will

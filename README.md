@@ -274,17 +274,17 @@ CoreData/
 
 # Privacy Policy
 
-StreakMed stores all data on-device only using CoreData. Nothing is transmitted to any server, no analytics are collected, and no account is required.
+StreakMed stores all data on-device using CoreData. No analytics are collected and no account is required.
 
 The privacy policy is hosted at your Notion page URL. Enter this same URL in **App Store Connect → App Information → Privacy Policy URL** before submitting.
 
 What the policy covers:
 
-- No personal data collected or transmitted off-device
-- All medication data stored locally via CoreData
+- Medication data, dose history, and settings stored locally via CoreData — never uploaded
 - Notifications generated and delivered entirely on-device by iOS
 - No advertising, no third-party SDKs, no tracking
 - Deleting the app permanently removes all data
+- **Optional prescription scanning:** if the user enables it (by entering their own Claude API key), the text read from a label photo — with phone numbers, addresses, dates, and Rx numbers removed on-device — is sent to Anthropic's Claude API to identify the medication. The photo itself never leaves the device. This happens only when the user taps Scan, and Anthropic does not train models on API data. The user's API key is stored in the iOS Keychain.
 
 ---
 

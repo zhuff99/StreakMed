@@ -36,13 +36,15 @@ struct PrescriptionScannerSheet: View {
     let onResult: (ScannedMedInfo) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("claudeApiKey") private var apiKey: String = ""
+    @AppStorage("hasAcknowledgedScanPrivacy") private var hasAcknowledgedScanPrivacy = false
 
+    @State private var apiKey: String = APIKeyStore.load()
     @State private var selectedImage:   UIImage? = nil
     @State private var showPhotoPicker: Bool     = false
     @State private var showCamera:      Bool     = false
     @State private var isScanning:      Bool     = false
     @State private var scanError:       String?  = nil
+    @State private var showPrivacyNotice: Bool   = false
 
     var body: some View {
         NavigationView {
@@ -128,8 +130,12 @@ struct PrescriptionScannerSheet: View {
                 // ── Scan button ────────────────────────────────────────
                 let canScan = selectedImage != nil && !apiKey.trimmingCharacters(in: .whitespaces).isEmpty
                 Button {
-                    guard let image = selectedImage else { return }
-                    scanImage(image)
+                    guard selectedImage != nil else { return }
+                    if hasAcknowledgedScanPrivacy {
+                        if let image = selectedImage { scanImage(image) }
+                    } else {
+                        showPrivacyNotice = true
+                    }
                 } label: {
                     HStack(spacing: 8) {
                         if isScanning {
@@ -171,6 +177,15 @@ struct PrescriptionScannerSheet: View {
         }
         .sheet(isPresented: $showCamera) {
             CameraPickerRepresentable(image: $selectedImage)
+        }
+        .alert("About Label Scanning", isPresented: $showPrivacyNotice) {
+            Button("Cancel", role: .cancel) {}
+            Button("Continue") {
+                hasAcknowledgedScanPrivacy = true
+                if let image = selectedImage { scanImage(image) }
+            }
+        } message: {
+            Text("The photo never leaves your phone — text is read on-device. To identify the medication, the label text (with phone numbers, addresses, dates, and Rx numbers removed) is sent securely to Anthropic's Claude API using your own key. Anthropic does not use API data to train models. This only happens when you tap Scan.")
         }
     }
 
@@ -238,9 +253,11 @@ struct PrescriptionScannerSheet: View {
                 return
             }
 
-            let labelText = lines.joined(separator: "\n")
+            // Strip lines that look like patient PII before anything leaves the
+            // device — the parser only needs drug, strength, and directions.
+            let labelText = PIIRedactor.redact(lines: lines).joined(separator: "\n")
 
-            // Step 2: Hand raw OCR text to Claude for intelligent structured parsing
+            // Step 2: Hand redacted OCR text to Claude for structured parsing
             ClaudeParser.parse(text: labelText, apiKey: key) { result, parseError in
                 DispatchQueue.main.async {
                     self.isScanning = false
@@ -261,6 +278,37 @@ struct PrescriptionScannerSheet: View {
         DispatchQueue.global(qos: .userInitiated).async {
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
             try? handler.perform([ocrRequest])
+        }
+    }
+}
+
+// MARK: - PII Redaction
+
+/// Removes lines from OCR'd label text that match common patient-identifying
+/// patterns. Runs entirely on-device, before any network request. Heuristic by
+/// nature — the in-app disclosure covers what redaction can't catch (e.g. a
+/// bare name line with no other markers).
+enum PIIRedactor {
+
+    private static let patterns: [NSRegularExpression] = {
+        let raw = [
+            #"\(?\d{3}\)?[-. ]\d{3}[-. ]\d{4}"#,                                  // phone numbers
+            #"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b"#,                                // dates (DOB, fill/discard dates)
+            #"\brx\s*#?\s*:?\s*\d+"#,                                             // Rx numbers
+            #"\bdob\b"#,                                                          // date of birth marker
+            #"\d+\s+\w+(\s\w+)*\s(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|ln|lane|way|ct|court|pkwy|parkway)\.?\b"#, // street addresses
+            #",\s*[A-Z]{2}\s+\d{5}(-\d{4})?\b"#,                                  // city, ST zip
+            #"\b(patient|member|insured|prescriber|dr\.|md)\b\s*:?"#,             // people-field markers
+        ]
+        return raw.compactMap {
+            try? NSRegularExpression(pattern: $0, options: [.caseInsensitive])
+        }
+    }()
+
+    static func redact(lines: [String]) -> [String] {
+        lines.filter { line in
+            let range = NSRange(line.startIndex..., in: line)
+            return !patterns.contains { $0.firstMatch(in: line, range: range) != nil }
         }
     }
 }
@@ -330,13 +378,19 @@ struct ClaudeParser {
                 completion(nil, err("Network error: \(error.localizedDescription)")); return
             }
 
-            // Check HTTP status
+            // Check HTTP status — show a friendly message, never the raw body
             if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                #if DEBUG
                 let detail = data.flatMap { String(data: $0, encoding: .utf8) } ?? "unknown"
-                if http.statusCode == 401 {
-                    completion(nil, err("Invalid API key. Check Settings.")); return
+                print("[StreakMed] Scanner API error \(http.statusCode): \(detail)")
+                #endif
+                switch http.statusCode {
+                case 401:      completion(nil, err("Invalid API key. Check Settings."))
+                case 429:      completion(nil, err("Rate limit reached. Wait a moment and try again."))
+                case 529, 503: completion(nil, err("The AI service is busy. Try again shortly."))
+                default:       completion(nil, err("Scan failed (error \(http.statusCode)). Try again."))
                 }
-                completion(nil, err("API error \(http.statusCode): \(detail)")); return
+                return
             }
 
             guard let data = data,
