@@ -66,6 +66,8 @@ struct AddMedSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var name:           String   = ""
+    @State private var suggestions:    [MedDBEntry] = []
+    @State private var selectedDBMed:  MedDBEntry?  = nil
     @State private var doseAmount:     String   = ""
     @State private var doseUnit:       String   = "mg"
     @State private var quantity:       Int      = 1
@@ -106,13 +108,93 @@ struct AddMedSheet: View {
         !selectedDays.isEmpty
     }
 
+    /// True when the dose fields currently match this strength chip.
+    private func isStrengthSelected(_ strength: String, med: MedDBEntry) -> Bool {
+        guard let dose = med.doseComponents(for: strength) else { return false }
+        return doseAmount == dose.amount && doseUnit == dose.unit
+    }
+
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
 
-                    // ── Name ─────────────────────────────────────────────
-                    FormTextField(label: "Medication Name", placeholder: "e.g. Lisinopril", text: $name)
+                    // ── Name (with offline RxTerms autocomplete) ─────────
+                    VStack(alignment: .leading, spacing: 8) {
+                        FormTextField(label: "Medication Name", placeholder: "e.g. Lisinopril", text: $name)
+                            .onChange(of: name) { newValue in
+                                if newValue != selectedDBMed?.name {
+                                    selectedDBMed = nil
+                                    suggestions = MedDatabase.search(newValue)
+                                } else {
+                                    suggestions = []
+                                }
+                            }
+
+                        if !suggestions.isEmpty {
+                            VStack(spacing: 0) {
+                                ForEach(suggestions) { med in
+                                    Button {
+                                        selectedDBMed = med
+                                        name = med.name
+                                        suggestions = []
+                                        if med.strengths.count == 1,
+                                           let dose = med.doseComponents(for: med.strengths[0]) {
+                                            doseAmount = dose.amount
+                                            doseUnit   = dose.unit
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Text(med.name)
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(AppTheme.text)
+                                            Spacer()
+                                            if !med.formLabel.isEmpty {
+                                                Text(med.formLabel)
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(AppTheme.textDim)
+                                            }
+                                        }
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 11)
+                                    }
+                                    if med.id != suggestions.last?.id {
+                                        Divider().background(AppTheme.border)
+                                    }
+                                }
+                            }
+                            .background(AppTheme.surfaceAlt)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(AppTheme.border, lineWidth: 1)
+                            )
+                        }
+
+                        // Strength chips for the selected medication
+                        if let med = selectedDBMed, med.strengths.count > 1 {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(med.strengths, id: \.self) { strength in
+                                        let isActive = isStrengthSelected(strength, med: med)
+                                        Button {
+                                            if let dose = med.doseComponents(for: strength) {
+                                                doseAmount = dose.amount
+                                                doseUnit   = dose.unit
+                                            }
+                                        } label: {
+                                            Text(strength)
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundColor(isActive ? AppTheme.accentFG : AppTheme.accentText)
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 7)
+                                                .background(Capsule().fill(isActive ? AppTheme.accent : AppTheme.accentDim))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // ── Dose amount + unit ────────────────────────────────
                     VStack(alignment: .leading, spacing: 8) {
@@ -523,6 +605,7 @@ struct AddMedSheet: View {
             }
             .background(AppTheme.surface.ignoresSafeArea())
             .navigationTitle("New Medication")
+            .onAppear { MedDatabase.preload() }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
