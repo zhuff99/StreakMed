@@ -306,4 +306,5 @@ What the policy covers:
 - [ ] Apple Watch companion app — mark doses from the wrist
 - [ ] Caregiver mode — manage medications for a family member
 - [ ] Medication interactions — basic warnings for known interactions
+- [ ] Medication info lookup — an "Info" surface (tab or med-detail section) showing consumer drug information for the user's meds. Phase 1: curated outbound links per medication (MedlinePlus consumer pages, Drugs.com) — zero liability, links resolve from the med name. Phase 2 (maybe): inline summaries from the openFDA drug label API (official FDA label text, public domain) with a "not medical advice" disclaimer. Never paraphrase or generate medical content in-app — display verbatim sources or link out only.
 

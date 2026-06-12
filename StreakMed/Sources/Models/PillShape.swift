@@ -15,9 +15,12 @@ enum PillShape: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-        case .capsule:   return "capsule.fill"
-        case .tablet:    return "circle.fill"
-        case .oval:      return "oval.fill"
+        // Two-tone horizontal capsule — reads instantly as a gel cap
+        case .capsule:   return "capsule.lefthalf.filled"
+        // Ring with filled center — the classic scored-tablet look
+        case .tablet:    return "smallcircle.filled.circle.fill"
+        // Vertical oval — softgel silhouette, distinct from the capsule
+        case .oval:      return "oval.portrait.fill"
         case .liquid:    return "drop.fill"
         case .injection: return "syringe.fill"
         case .inhaler:   return "inhaler.fill"
