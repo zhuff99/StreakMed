@@ -44,9 +44,9 @@ struct MedCard: View {
                     .stroke(isTaken ? AppTheme.border : medColor.opacity(0.4), lineWidth: 1.5)
             )
             .overlay(
-                Circle()
-                    .fill(isTaken ? AppTheme.textDim : medColor)
-                    .frame(width: 10, height: 10)
+                Image(systemName: PillShape.from(med.shape).icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(isTaken ? AppTheme.textDim : medColor)
             )
             .frame(width: 40, height: 40)
     }

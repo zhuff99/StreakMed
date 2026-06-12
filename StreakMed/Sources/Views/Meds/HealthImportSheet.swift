@@ -9,6 +9,7 @@ struct HealthMedCandidate: Identifiable {
     let name: String
     let dose: String          // e.g. "10 mg", or "" if not parseable
     let alreadyExists: Bool   // a med with this name is already in StreakMed
+    var shape: String = PillShape.capsule.rawValue
 }
 
 // MARK: - Health import logic (iOS 26+)
@@ -42,9 +43,21 @@ enum HealthMedImporter {
                 return HealthMedCandidate(
                     name: name,
                     dose: dose,
-                    alreadyExists: existingNames.contains(name.lowercased())
+                    alreadyExists: existingNames.contains(name.lowercased()),
+                    shape: pillShape(for: med.medication.generalForm).rawValue
                 )
             }
+    }
+
+    /// Maps Apple Health's medication form onto StreakMed's pill shapes.
+    private static func pillShape(for form: HKMedicationGeneralForm) -> PillShape {
+        switch form {
+        case .capsule:           return .capsule
+        case .inhaler:           return .inhaler
+        case .injection:         return .injection
+        case .liquid, .drops:    return .liquid
+        default:                 return .tablet
+        }
     }
 
     /// Splits Health's display text (e.g. "Lisinopril 10 MG Oral Tablet")
@@ -234,7 +247,8 @@ struct HealthImportSheet: View {
                 dose:  candidate.dose,
                 type:  "General",
                 color: medColorPalette[i % medColorPalette.count],
-                scheduledTimes: [eightAM]
+                scheduledTimes: [eightAM],
+                shape: candidate.shape
             )
         }
         dismiss()

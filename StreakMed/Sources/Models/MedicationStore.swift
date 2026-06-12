@@ -630,7 +630,8 @@ final class MedicationStore: ObservableObject {
     func addMedication(
         name: String, dose: String, type: String,
         color: String, scheduledTimes: [Date], scheduledDays: Set<Int> = Set(1...7),
-        pillsRemaining: Int? = nil, notes: String? = nil
+        pillsRemaining: Int? = nil, notes: String? = nil,
+        shape: String = PillShape.capsule.rawValue
     ) {
         let med            = Medication(context: viewContext)
         med.id             = UUID()
@@ -638,6 +639,7 @@ final class MedicationStore: ObservableObject {
         med.dose           = dose
         med.type           = type
         med.color          = color
+        med.shape          = shape
         med.notes          = notes?.isEmpty == true ? nil : notes
         med.scheduledTime  = scheduledTimes.first
         med.doseTimes      = scheduledTimes.map { doseTimeFmt.string(from: $0) }.joined(separator: ",")
@@ -658,12 +660,14 @@ final class MedicationStore: ObservableObject {
         _ med: Medication,
         name: String, dose: String, type: String,
         color: String, scheduledTimes: [Date],
-        scheduledDays: Set<Int>, pillsRemaining: Int?, notes: String? = nil
+        scheduledDays: Set<Int>, pillsRemaining: Int?, notes: String? = nil,
+        shape: String = PillShape.capsule.rawValue
     ) {
         med.name           = name
         med.dose           = dose
         med.type           = type
         med.color          = color
+        med.shape          = shape
         med.notes          = notes?.isEmpty == true ? nil : notes
         med.scheduledTime  = scheduledTimes.first
         med.doseTimes      = scheduledTimes.map { doseTimeFmt.string(from: $0) }.joined(separator: ",")

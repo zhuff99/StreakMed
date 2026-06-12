@@ -82,14 +82,15 @@ struct MedsView: View {
             get: { showAddSheet && sizeClass != .regular },
             set: { showAddSheet = $0 }
         )) {
-            AddMedSheet { name, dose, type, color, times, days, pills, notes in
+            AddMedSheet { name, dose, type, color, times, days, pills, notes, shape in
                 store.addMedication(
                     name: name, dose: dose,
                     type: type, color: color,
                     scheduledTimes: times,
                     scheduledDays: days,
                     pillsRemaining: pills,
-                    notes: notes
+                    notes: notes,
+                    shape: shape
                 )
             }
             .presentationDetents([.large])
@@ -99,14 +100,15 @@ struct MedsView: View {
             get: { showAddSheet && sizeClass == .regular },
             set: { showAddSheet = $0 }
         )) {
-            AddMedSheet { name, dose, type, color, times, days, pills, notes in
+            AddMedSheet { name, dose, type, color, times, days, pills, notes, shape in
                 store.addMedication(
                     name: name, dose: dose,
                     type: type, color: color,
                     scheduledTimes: times,
                     scheduledDays: days,
                     pillsRemaining: pills,
-                    notes: notes
+                    notes: notes,
+                    shape: shape
                 )
             }
         }
@@ -172,9 +174,9 @@ struct MedManageRow: View {
                             .stroke(Color(hex: med.color ?? "4FFFB0").opacity(0.4), lineWidth: 2)
                     )
                     .overlay(
-                        Circle()
-                            .fill(Color(hex: med.color ?? "4FFFB0"))
-                            .frame(width: 12, height: 12)
+                        Image(systemName: PillShape.from(med.shape).icon)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(Color(hex: med.color ?? "4FFFB0"))
                     )
                     .frame(width: 44, height: 44)
 
@@ -270,11 +272,12 @@ struct MedManageRow: View {
             get: { showEditSheet && sizeClass != .regular },
             set: { showEditSheet = $0 }
         )) {
-            EditMedSheet(med: med) { name, dose, type, color, times, days, pills, notes in
+            EditMedSheet(med: med) { name, dose, type, color, times, days, pills, notes, shape in
                 store.updateMedication(
                     med,
                     name: name, dose: dose, type: type, color: color,
-                    scheduledTimes: times, scheduledDays: days, pillsRemaining: pills, notes: notes
+                    scheduledTimes: times, scheduledDays: days, pillsRemaining: pills, notes: notes,
+                    shape: shape
                 )
             }
             .presentationDetents([.large])
@@ -284,11 +287,12 @@ struct MedManageRow: View {
             get: { showEditSheet && sizeClass == .regular },
             set: { showEditSheet = $0 }
         )) {
-            EditMedSheet(med: med) { name, dose, type, color, times, days, pills, notes in
+            EditMedSheet(med: med) { name, dose, type, color, times, days, pills, notes, shape in
                 store.updateMedication(
                     med,
                     name: name, dose: dose, type: type, color: color,
-                    scheduledTimes: times, scheduledDays: days, pillsRemaining: pills, notes: notes
+                    scheduledTimes: times, scheduledDays: days, pillsRemaining: pills, notes: notes,
+                    shape: shape
                 )
             }
         }

@@ -56,6 +56,9 @@ final class NotificationManager: NSObject {
             content.body       = med.dose.map { "Take \($0)" } ?? "Don't forget your medication."
             content.sound      = .default
             content.badge      = 1
+            // Dose times are exactly what Apple's time-sensitive level is
+            // for — these break through Focus modes (user-revocable per app).
+            content.interruptionLevel  = .timeSensitive
             content.categoryIdentifier = "MEDICATION_REMINDER"
 
             let comps   = cal.dateComponents([.hour, .minute], from: fireTime)
@@ -98,6 +101,7 @@ final class NotificationManager: NSObject {
         content.body  = "Don't let your streak slip — log your dose when you're ready."
         content.sound = .default
         content.badge = 1
+        content.interruptionLevel = .timeSensitive
 
         let comps   = cal.dateComponents([.hour, .minute], from: followUpTime)
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
@@ -140,6 +144,7 @@ final class NotificationManager: NSObject {
         content.body       = med.dose.map { "Take \($0)" } ?? "Don't forget your medication."
         content.sound      = .default
         content.badge      = 1
+        content.interruptionLevel  = .timeSensitive
         content.categoryIdentifier = "MEDICATION_REMINDER"
 
         let cal       = Calendar.current

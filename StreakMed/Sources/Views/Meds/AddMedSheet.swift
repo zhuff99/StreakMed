@@ -62,7 +62,8 @@ struct DoseTimePickerSheet: View {
 
 struct AddMedSheet: View {
     /// name, dose (e.g. "10 mg"), type, color hex, scheduledTimes, scheduledDays, pillsRemaining, notes
-    let onSave: (String, String, String, String, [Date], Set<Int>, Int?, String?) -> Void
+    /// name, dose, type, color hex, scheduledTimes, scheduledDays, pillsRemaining, notes, shape
+    let onSave: (String, String, String, String, [Date], Set<Int>, Int?, String?, String) -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var name:           String   = ""
@@ -82,6 +83,7 @@ struct AddMedSheet: View {
     @State private var editingDoseIndex: Int?    = nil
     @State private var tempDoseTime:     Date    = Date()
     @State private var showScanner:      Bool    = false
+    @State private var selectedShape:    PillShape = .capsule
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     private let notesLimit = 100
@@ -464,6 +466,42 @@ struct AddMedSheet: View {
                         }
                     }
 
+                    // ── Pill shape ────────────────────────────────────────
+                    VStack(alignment: .leading, spacing: 12) {
+                        FieldLabel("Appearance")
+                        HStack(spacing: 10) {
+                            ForEach(PillShape.allCases) { shape in
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        selectedShape = shape
+                                    }
+                                } label: {
+                                    let isSelected = selectedShape == shape
+                                    VStack(spacing: 5) {
+                                        Image(systemName: shape.icon)
+                                            .font(.system(size: 17, weight: .medium))
+                                            .foregroundColor(isSelected ? Color(hex: selectedColor) : AppTheme.textDim)
+                                            .frame(height: 20)
+                                        Text(shape.label)
+                                            .font(.system(size: 9, weight: .medium))
+                                            .foregroundColor(isSelected ? AppTheme.text : AppTheme.textDim)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(isSelected ? AppTheme.surfaceAlt : Color.clear)
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(isSelected ? Color(hex: selectedColor).opacity(0.6) : AppTheme.border,
+                                                    lineWidth: 1)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // ── Doses per Day ─────────────────────────────────────
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -582,7 +620,8 @@ struct AddMedSheet: View {
                             scheduledTimes,
                             selectedDays,
                             pills,
-                            notesVal.isEmpty ? nil : notesVal
+                            notesVal.isEmpty ? nil : notesVal,
+                            selectedShape.rawValue
                         )
                         dismiss()
                     } label: {

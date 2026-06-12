@@ -362,10 +362,11 @@ struct OnboardingMedsSetup: View {
             get: { showAddSheet && sizeClass != .regular },
             set: { showAddSheet = $0 }
         )) {
-            AddMedSheet { name, dose, type, color, times, days, pills, notes in
+            AddMedSheet { name, dose, type, color, times, days, pills, notes, shape in
                 store.addMedication(
                     name: name, dose: dose, type: type, color: color,
-                    scheduledTimes: times, scheduledDays: days, pillsRemaining: pills, notes: notes
+                    scheduledTimes: times, scheduledDays: days, pillsRemaining: pills, notes: notes,
+                    shape: shape
                 )
             }
             .presentationDetents([.large])
@@ -376,10 +377,11 @@ struct OnboardingMedsSetup: View {
             get: { showAddSheet && sizeClass == .regular },
             set: { showAddSheet = $0 }
         )) {
-            AddMedSheet { name, dose, type, color, times, days, pills, notes in
+            AddMedSheet { name, dose, type, color, times, days, pills, notes, shape in
                 store.addMedication(
                     name: name, dose: dose, type: type, color: color,
-                    scheduledTimes: times, scheduledDays: days, pillsRemaining: pills, notes: notes
+                    scheduledTimes: times, scheduledDays: days, pillsRemaining: pills, notes: notes,
+                    shape: shape
                 )
             }
         }
