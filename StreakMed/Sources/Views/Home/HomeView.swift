@@ -29,7 +29,8 @@ struct HomeView: View {
                         taken:      store.takenTodayCount,
                         total:      store.scheduledTodayCount,
                         streak:     store.calculateStreak(),
-                        bestStreak: store.bestStreak
+                        bestStreak: store.bestStreak,
+                        shields:    store.streakShields
                     )
                     .padding(.horizontal, 24)
                     .padding(.bottom, 28)

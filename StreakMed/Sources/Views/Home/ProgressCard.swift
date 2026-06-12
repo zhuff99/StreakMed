@@ -5,6 +5,7 @@ struct ProgressCard: View {
     let total:      Int
     let streak:     Int
     let bestStreak: Int
+    var shields:    Int = 0
     private var progress: Double {
         guard total > 0 else { return 0 }
         return Double(taken) / Double(total)
@@ -73,6 +74,18 @@ struct ProgressCard: View {
                     Text("\(streak) day streak")
                         .font(.system(size: 11))
                         .foregroundColor(AppTheme.textMuted)
+                }
+
+                if shields > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(AppTheme.blue)
+                        Text("\(shields)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(AppTheme.blue)
+                    }
+                    .padding(.leading, 8)
                 }
 
                 Spacer()

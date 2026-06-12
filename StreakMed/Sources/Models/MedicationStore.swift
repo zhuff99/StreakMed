@@ -107,6 +107,7 @@ final class MedicationStore: ObservableObject {
     @Published var medications:  [Medication] = []
     @Published var todayLogs:    [DoseLog]    = []
     @Published var bestStreak:   Int          = UserDefaults.standard.integer(forKey: "bestStreak")
+    @Published var streakShields: Int         = 0
     @Published var skippedDays:  Set<String>  = Set(UserDefaults.standard.stringArray(forKey: "skippedDays") ?? [])
     private var cancellables = Set<AnyCancellable>()
 
@@ -308,10 +309,11 @@ final class MedicationStore: ObservableObject {
     /// Recalculates the streak, updates the all-time best if it's been beaten,
     /// and checks whether any new badge milestones have been reached.
     private func updateBestStreak() {
-        let current = calculateStreak()
-        if current > bestStreak {
-            bestStreak = current
-            UserDefaults.standard.set(current, forKey: "bestStreak")
+        let result = computeStreak()
+        streakShields = result.shields
+        if result.streak > bestStreak {
+            bestStreak = result.streak
+            UserDefaults.standard.set(result.streak, forKey: "bestStreak")
         }
         checkAndAwardBadges()
     }
@@ -479,47 +481,84 @@ final class MedicationStore: ObservableObject {
     /// skipped days are silently stepped over — they don't add to the count but they also
     /// don't break it. Stops as soon as a non-perfect day is found or the 1-year lookback
     /// limit is hit.
-    func calculateStreak() -> Int {
-        guard !medications.isEmpty else { return 0 }
+    // MARK: - Streak shields
+
+    /// One shield is earned per `shieldEarnInterval` consecutive perfect days,
+    /// banked up to `shieldCap`. A missed day silently consumes a shield and
+    /// the streak survives; the History calendar still shows the miss honestly.
+    static let shieldEarnInterval = 30
+    static let shieldCap          = 2
+
+    struct StreakResult {
+        let streak:  Int
+        let shields: Int   // currently banked, after any spends
+    }
+
+    func calculateStreak() -> Int { computeStreak().streak }
+
+    /// Walks forward from the lookback cutoff so shields are always earned
+    /// chronologically before the miss they absorb. Fully derived from the
+    /// log history — no separate shield persistence to drift out of sync.
+    func computeStreak() -> StreakResult {
+        guard !medications.isEmpty else { return StreakResult(streak: 0, shields: 0) }
 
         let cal    = Calendar.current
+        let today  = cal.startOfDay(for: DebugDateManager.shared.currentDate)
         // Cap lookback at 1 year to avoid iterating indefinitely on old accounts
-        let cutoff = cal.date(byAdding: .year, value: -1, to: cal.startOfDay(for: DebugDateManager.shared.currentDate))!
-        var streak    = 0
-        var checkDate = cal.startOfDay(for: DebugDateManager.shared.currentDate)
+        let cutoff = cal.date(byAdding: .year, value: -1, to: today)!
 
-        // If today still has pending doses, start looking from yesterday so the
-        // streak doesn't drop to 0 mid-day while the user is still taking meds.
-        if takenTodayCount < scheduledTodayCount {
-            checkDate = cal.date(byAdding: .day, value: -1, to: checkDate)!
+        // One fetch for the whole window, bucketed by day — the forward walk
+        // visits every day of the year, so per-day count queries would be slow.
+        let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
+        req.predicate = NSPredicate(
+            format: "scheduledDate >= %@ AND status == 'taken'", cutoff as NSDate
+        )
+        var takenByDay: [Date: Int] = [:]
+        for log in (try? viewContext.fetch(req)) ?? [] {
+            guard let day = log.scheduledDate.map({ cal.startOfDay(for: $0) }) else { continue }
+            takenByDay[day, default: 0] += 1
         }
 
-        while checkDate >= cutoff {
-            let scheduledForDay = medications.filter { $0.isScheduled(on: checkDate) }
+        var streak     = 0
+        var perfectRun = 0   // consecutive perfect days since the last shield was earned
+        var shields    = 0
+        var day        = cutoff
 
-            // Skip rest days and intentionally-skipped days — neither breaks nor counts
-            if scheduledForDay.isEmpty || isSkipped(checkDate) {
-                checkDate = cal.date(byAdding: .day, value: -1, to: checkDate)!
+        while day <= today {
+            let next = cal.date(byAdding: .day, value: 1, to: day)!
+            let scheduledForDay = medications.filter { $0.isScheduled(on: day) }
+
+            // Rest days and intentionally-skipped days neither break nor count
+            if scheduledForDay.isEmpty || isSkipped(day) {
+                day = next
                 continue
             }
 
-            let nextDay = cal.date(byAdding: .day, value: 1, to: checkDate)!
-            let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
-            req.predicate = NSPredicate(
-                format: "scheduledDate >= %@ AND scheduledDate < %@ AND status == 'taken'",
-                checkDate as NSDate, nextDay as NSDate
-            )
-            let takenCount = (try? viewContext.count(for: req)) ?? 0
-            // Total doses = sum of each medication's dose count for the day (at least 1 per med)
             let totalDoses = scheduledForDay.reduce(0) { $0 + max(1, $1.doseTimesArray.count) }
-            if takenCount >= totalDoses {
-                streak   += 1
-                checkDate = cal.date(byAdding: .day, value: -1, to: checkDate)!
+            let complete   = takenByDay[day, default: 0] >= totalDoses
+
+            if complete {
+                streak     += 1
+                perfectRun += 1
+                if perfectRun >= Self.shieldEarnInterval && shields < Self.shieldCap {
+                    shields    += 1
+                    perfectRun  = 0
+                }
+            } else if day == today {
+                // Doses still pending today — never breaks the streak or spends
+                // a shield mid-day; today simply doesn't count yet.
+                break
+            } else if shields > 0 {
+                shields    -= 1   // shield absorbs the miss, streak survives
+                perfectRun  = 0
             } else {
-                break   // first missed day ends the streak
+                streak     = 0
+                perfectRun = 0
             }
+            day = next
         }
-        return streak
+
+        return StreakResult(streak: streak, shields: shields)
     }
 
     // MARK: - Log lookup
