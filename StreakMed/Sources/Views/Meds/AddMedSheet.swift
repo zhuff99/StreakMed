@@ -408,7 +408,7 @@ struct AddMedSheet: View {
                     // ── Color picker ──────────────────────────────────────
                     VStack(alignment: .leading, spacing: 12) {
                         FieldLabel("Color")
-                        HStack(spacing: 14) {
+                        HStack(spacing: 0) {
                             ForEach(medColorPalette, id: \.self) { hex in
                                 Button {
                                     withAnimation(.easeInOut(duration: 0.15)) {
@@ -428,6 +428,7 @@ struct AddMedSheet: View {
                                                 .opacity(isSelected ? 1 : 0)
                                         )
                                 }
+                                .frame(maxWidth: .infinity)
                             }
                             // Color wheel button — opens system picker directly on first tap
                             ColorPicker(selection: $customColor, supportsOpacity: false) {
@@ -462,7 +463,7 @@ struct AddMedSheet: View {
                                     showColorPicker = true
                                 }
                             }
-                            Spacer()
+                            .frame(maxWidth: .infinity)
                         }
                     }
 

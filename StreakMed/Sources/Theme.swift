@@ -168,5 +168,5 @@ struct StreakToggle: ToggleStyle {
 
 // MARK: - Color palette for med pills
 let medColorPalette: [String] = [
-    "4FFFB0", "5B8BFF", "FF7A50", "C97BFF", "FFD166", "FF4F4F"
+    "4FFFB0", "5B8BFF", "FF7A50", "C97BFF", "FFD166", "FF4F4F", "64D2FF"
 ]
