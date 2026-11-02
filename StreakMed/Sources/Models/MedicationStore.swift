@@ -107,6 +107,7 @@ final class MedicationStore: ObservableObject {
     @Published var medications:  [Medication] = []
     @Published var todayLogs:    [DoseLog]    = []
     @Published var bestStreak:   Int          = UserDefaults.standard.integer(forKey: "bestStreak")
+    @Published var currentStreak: Int         = 0   // cached by updateBestStreak(); views read this, never computeStreak()
     @Published var streakShields: Int         = 0
     @Published var skippedDays:  Set<String>  = Set(UserDefaults.standard.stringArray(forKey: "skippedDays") ?? [])
     private var cancellables = Set<AnyCancellable>()
@@ -141,8 +142,8 @@ final class MedicationStore: ObservableObject {
 
     /// Checks the current streak against milestones and awards any newly reached badges.
     /// Called from `updateBestStreak()` after every state change.
-    func checkAndAwardBadges() {
-        let streak = calculateStreak()
+    func checkAndAwardBadges(streak: Int? = nil) {
+        let streak = streak ?? computeStreak().streak
         for milestone in Self.badgeMilestones {
             if streak >= milestone && earnedBadges[milestone] == nil {
                 earnedBadges[milestone] = Date()
@@ -180,7 +181,7 @@ final class MedicationStore: ObservableObject {
         guard let defaults = UserDefaults(suiteName: Self.widgetGroupID) else { return }
         defaults.set(takenTodayCount,     forKey: "widget_taken")
         defaults.set(scheduledTodayCount, forKey: "widget_total")
-        defaults.set(calculateStreak(),   forKey: "widget_streak")
+        defaults.set(currentStreak,       forKey: "widget_streak")
         if let next = pendingDoseItems.first {
             defaults.set(next.medication.name ?? "",                           forKey: "widget_next_name")
             defaults.set(next.scheduledTime?.timeIntervalSince1970 ?? 0,       forKey: "widget_next_time")
@@ -310,12 +311,13 @@ final class MedicationStore: ObservableObject {
     /// and checks whether any new badge milestones have been reached.
     private func updateBestStreak() {
         let result = computeStreak()
+        currentStreak = result.streak
         streakShields = result.shields
         if result.streak > bestStreak {
             bestStreak = result.streak
             UserDefaults.standard.set(result.streak, forKey: "bestStreak")
         }
-        checkAndAwardBadges()
+        checkAndAwardBadges(streak: result.streak)
     }
 
     /// Fetches all active medications from CoreData, sorted by the user's drag-reorder position.
@@ -691,6 +693,7 @@ final class MedicationStore: ObservableObject {
 
         save()
         fetchMedications()
+        updateBestStreak()
         updateWidgetSnapshot()
         NotificationManager.shared.scheduleNotification(for: med)
     }
@@ -715,6 +718,7 @@ final class MedicationStore: ObservableObject {
 
         save()
         fetchMedications()
+        updateBestStreak()
         updateWidgetSnapshot()
         NotificationManager.shared.cancelAllNotifications(for: med)
         NotificationManager.shared.scheduleNotification(for: med)
@@ -727,6 +731,7 @@ final class MedicationStore: ObservableObject {
         med.isActive = false
         save()
         fetchMedications()
+        updateBestStreak()
         updateWidgetSnapshot()
     }
 

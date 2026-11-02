@@ -254,13 +254,13 @@ struct StatsGrid: View {
             )
             StatCard(
                 label: "Streak",
-                value: "\(store.calculateStreak())",
+                value: "\(store.currentStreak)",
                 sub:   "days in a row",
                 color: AppTheme.blue
             )
             StatCard(
                 label: "Best Streak",
-                value: "\(max(store.bestStreak, store.calculateStreak()))",
+                value: "\(max(store.bestStreak, store.currentStreak))",
                 sub:   "days",
                 color: AppTheme.partial
             )

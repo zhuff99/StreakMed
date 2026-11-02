@@ -83,8 +83,12 @@ final class NotificationManager: NSObject {
 
     /// Schedules a daily repeating follow-up notification fired X hours after the dose time.
     /// Cancelled immediately when the user marks the dose as taken.
+    /// `skipToday`: the dose was already taken today, so if today's follow-up
+    /// moment is still ahead, pin a one-shot to tomorrow instead of a daily
+    /// repeat — otherwise the repeat fires today for a dose already logged.
     private func scheduleFollowUp(for med: Medication, doseIndex: Int, scheduledTime: Date,
-                                  baseID: String, name: String, totalDoses: Int) {
+                                  baseID: String, name: String, totalDoses: Int,
+                                  skipToday: Bool = false) {
         guard UserDefaults.standard.bool(forKey: "missedDoseReminderEnabled") else { return }
 
         let followUpHours = max(1, UserDefaults.standard.integer(forKey: "missedDoseFollowUpHours") == 0
@@ -103,8 +107,17 @@ final class NotificationManager: NSObject {
         content.badge = 1
         content.interruptionLevel = .timeSensitive
 
-        let comps   = cal.dateComponents([.hour, .minute], from: followUpTime)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+        let comps = cal.dateComponents([.hour, .minute], from: followUpTime)
+        let trigger: UNCalendarNotificationTrigger
+        if skipToday && Date() < followUpTime {
+            let tomorrow = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date())) ?? Date()
+            var tomorrowComps = cal.dateComponents([.year, .month, .day], from: tomorrow)
+            tomorrowComps.hour   = comps.hour
+            tomorrowComps.minute = comps.minute
+            trigger = UNCalendarNotificationTrigger(dateMatching: tomorrowComps, repeats: false)
+        } else {
+            trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+        }
         let request = UNNotificationRequest(
             identifier: followUpNotifID(baseID: baseID, doseIndex: doseIndex),
             content:    content,
@@ -174,11 +187,12 @@ final class NotificationManager: NSObject {
         let request = UNNotificationRequest(identifier: notifID, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
 
-        // Reschedule tomorrow's missed-dose follow-up (repeating daily trigger is fine here
-        // since the dose has been taken today — it will only bother the user tomorrow if they forget)
+        // Reschedule the missed-dose follow-up for tomorrow. skipToday matters when
+        // the dose was taken early: a daily repeat would still fire later today.
         scheduleFollowUp(for: med, doseIndex: doseIndex, scheduledTime: time,
                          baseID: baseID, name: name,
-                         totalDoses: med.doseTimesArray.isEmpty ? 1 : med.doseTimesArray.count)
+                         totalDoses: med.doseTimesArray.isEmpty ? 1 : med.doseTimesArray.count,
+                         skipToday: true)
     }
 
     /// Cancels ALL notifications for a medication (e.g. when deleting or editing it).

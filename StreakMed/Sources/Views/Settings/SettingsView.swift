@@ -234,7 +234,7 @@ struct SettingsView: View {
                 SettingsCard(title: "Data") {
                     SettingsInfoRow(label: "Medications tracked",   value: "\(store.medications.count)")
                     Divider().background(AppTheme.border)
-                    SettingsInfoRow(label: "Current streak",        value: "\(store.calculateStreak()) days")
+                    SettingsInfoRow(label: "Current streak",        value: "\(store.currentStreak) days")
                     Divider().background(AppTheme.border)
                     SettingsInfoRow(label: "Best streak",           value: "\(store.bestStreak) days")
                     Divider().background(AppTheme.border)
@@ -821,7 +821,7 @@ struct DevToolsCard: View {
     private func seedSampleMedications() {
         let cal = Calendar.current
         let selected = Array(medPool.shuffled().prefix(6))
-        var palette = colorPalette.shuffled()
+        let palette = colorPalette.shuffled()
         for (i, s) in selected.enumerated() {
             let color = palette[i % palette.count]
             let time = cal.date(from: DateComponents(hour: s.hour, minute: 0)) ?? Date()

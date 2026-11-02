@@ -28,7 +28,7 @@ struct HomeView: View {
                     ProgressCard(
                         taken:      store.takenTodayCount,
                         total:      store.scheduledTodayCount,
-                        streak:     store.calculateStreak(),
+                        streak:     store.currentStreak,
                         bestStreak: store.bestStreak,
                         shields:    store.streakShields
                     )
