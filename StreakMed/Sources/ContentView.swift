@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreData
 import Combine
+import StoreKit
 
 // MARK: - Tab Definition
 
@@ -31,6 +32,7 @@ enum AppTab: String, CaseIterable {
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.scenePhase)          private var scenePhase
+    @Environment(\.requestReview)       private var requestReview
     @StateObject private var store: MedicationStore
     @State private var selectedTab: AppTab = .home
 
@@ -77,6 +79,13 @@ struct ContentView: View {
                 BadgeUnlockOverlay(milestone: unlockedMilestone) {
                     showBadgeUnlock = false
                     store.newlyUnlockedBadge = nil
+                    // Ask for a rating right after the first real milestone —
+                    // the user just saw confetti for a week of consistency.
+                    // iOS rate-limits the prompt (3/year), so this is safe to
+                    // call unconditionally here.
+                    if unlockedMilestone == 7 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { requestReview() }
+                    }
                 }
                 .transition(.opacity)
                 .zIndex(9)

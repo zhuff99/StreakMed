@@ -14,6 +14,20 @@ struct MedCard: View {
     private var isTaking: Bool   { justTakenID == med.id }   // true for ~0.5 s while the take animation plays
     private var medColor: Color  { Color(hex: med.color ?? "4FFFB0") }
 
+    /// Scheduled time-of-day has passed and the dose isn't logged. Compared by
+    /// clock components so it stays correct under the dev-tools date override
+    /// (doseTimesArray is anchored to the real calendar day).
+    private var isOverdue: Bool {
+        guard !isTaken else { return false }
+        let times = med.doseTimesArray
+        guard let doseTime = doseIndex < times.count ? times[doseIndex] : med.scheduledTime else { return false }
+        let cal = Calendar.current
+        let now = DebugDateManager.shared.currentDate
+        let nowMinutes  = cal.component(.hour, from: now)      * 60 + cal.component(.minute, from: now)
+        let doseMinutes = cal.component(.hour, from: doseTime) * 60 + cal.component(.minute, from: doseTime)
+        return nowMinutes > doseMinutes
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -28,7 +42,7 @@ struct MedCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(AppTheme.border, lineWidth: 1)
+                .stroke(isOverdue ? AppTheme.warn.opacity(0.55) : AppTheme.border, lineWidth: 1)
         )
         .opacity(isTaken ? 0.65 : 1.0)
         .animation(.easeInOut(duration: 0.3), value: isTaken)
@@ -65,15 +79,32 @@ struct MedCard: View {
                     .foregroundColor(AppTheme.textDim)
                     .lineLimit(1)
 
-                // Line 2: "Dose N of M" badge — only for multi-dose meds
-                if let doseLabel = doseIndexLabel {
-                    Text(doseLabel)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(AppTheme.textMuted)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(AppTheme.surfaceAlt)
-                        .cornerRadius(5)
+                // Line 2: "Overdue" and/or "Dose N of M" badges
+                if isOverdue || doseIndexLabel != nil {
+                    HStack(spacing: 6) {
+                        if isOverdue {
+                            HStack(spacing: 3) {
+                                Image(systemName: "clock.badge.exclamationmark")
+                                    .font(.system(size: 9, weight: .semibold))
+                                Text("Overdue")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .foregroundColor(AppTheme.warn)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(AppTheme.warnDim)
+                            .cornerRadius(5)
+                        }
+                        if let doseLabel = doseIndexLabel {
+                            Text(doseLabel)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(AppTheme.textMuted)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(AppTheme.surfaceAlt)
+                                .cornerRadius(5)
+                        }
+                    }
                 }
             }
 

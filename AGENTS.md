@@ -37,7 +37,7 @@ StreakMed is a live iOS medication tracking app (SwiftUI + CoreData), published 
 - `store.refresh()` is the main reload trigger. Order matters:
   `fetchMedications()` → `fetchTodayLogs()` → `processWidgetActions()` → `updateBestStreak()` → `updateWidgetSnapshot()`.
   `fetchTodayLogs()` **must** precede `processWidgetActions()` — `markTaken`'s double-log guard reads `todayLogs`, and stale logs silently dropped widget actions once (fixed June 2026).
-- `updateBestStreak()` → `computeStreak()` → updates `bestStreak`, `streakShields`, then `checkAndAwardBadges()`.
+- `updateBestStreak()` → `computeStreak()` once → sets `currentStreak`, `streakShields`, `bestStreak`, then `checkAndAwardBadges(streak:)`. `computeStreak()` walks a full year — never call it from a view body; read `currentStreak`.
 - **Never use `Date()` for business logic.** Use `DebugDateManager.shared.currentDate` so the dev-tools date simulator works. (Views that only format display times are fine.)
 - **Never hardcode colors.** `AppTheme.*` are dynamic (`UIColor { traits in }`). Exception: the widget target mirrors a fixed dark palette because it can't import the app.
 - `.onChange` must use the single-parameter closure form (two-parameter is iOS 17+).
@@ -94,6 +94,7 @@ StreakMedWidget/
 @Published var medications: [Medication]
 @Published var todayLogs: [DoseLog]
 @Published var bestStreak: Int
+@Published var currentStreak: Int              // cached by updateBestStreak(); views read THIS, never calculateStreak()
 @Published var streakShields: Int              // banked shields after any spends
 @Published var skippedDays: Set<String>        // "yyyy-MM-dd" user-marked skip days
 @Published var earnedBadges: [Int: Date]
@@ -160,7 +161,9 @@ widget_actions   Data (JSON [{medID, doseIndex, takenAt}])
 ```
 `MarkDoseTakenIntent` (in the widget file) appends an action, optimistically updates the snapshot (removes from `widget_pending`, bumps `widget_taken`), reloads timelines. The app replays the queue in `refresh()` → `processWidgetActions()` through the real `markTaken(at:)` path, with a CoreData duplicate check. Under the debug date override, replayed timestamps are remapped onto the simulated day.
 
-**Known limitation:** the extension can't cancel notifications, so a dose taken via widget may still get its reminder/follow-up until the app next opens.
+**Known limitation (notifications):** a dose taken *before* its reminder time gets its reminder and follow-up pinned as one-shots for tomorrow (iOS has no "daily repeat starting tomorrow"); the daily repeats are restored by `rescheduleAll` on the first foreground of each day. A user who takes doses early and doesn't open the app for 2+ days loses reminders until they do — candidate fix: a `BGAppRefreshTask` that calls `rescheduleAll`.
+
+**Known limitation (widget):** the extension can't cancel notifications, so a dose taken via widget may still get its reminder/follow-up until the app next opens.
 
 Widget files: `StreakMedWidget/StreakMedWidgetExtension.entitlements` (App Group). Widget target min iOS must stay 16.6 — Xcode defaults new extension targets to the latest OS, which silently hides the widget from older devices.
 
