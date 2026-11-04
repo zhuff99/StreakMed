@@ -105,6 +105,72 @@ struct HistoryExporter {
         return writeTempFile(name: "StreakMed_History.pdf", data: data)
     }
 
+    // MARK: - Adherence report (Plus)
+
+    static func makeAdherenceReport(_ report: MedicationStore.AdherenceReport) -> URL? {
+        let dateFmt   = DateFormatter(); dateFmt.dateStyle   = .medium
+        let exportFmt = DateFormatter(); exportFmt.dateStyle = .long
+
+        var rows = ""
+        for m in report.meds.sorted(by: { $0.percent > $1.percent }) {
+            let cls = m.percent >= 90 ? "good" : (m.percent >= 70 ? "ok" : "low")
+            rows += """
+            <tr><td class="name">\(m.name)</td><td class="dose">\(m.dose)</td>
+            <td class="num">\(m.taken) / \(m.scheduled)</td>
+            <td class="num \(cls)">\(m.scheduled > 0 ? "\(m.percent)%" : "—")</td></tr>
+            """
+        }
+
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8">
+        <style>
+          body  { font-family: -apple-system, Helvetica Neue, Helvetica; margin: 36px; color: #111; }
+          h1    { font-size: 17px; font-weight: 700; margin: 0 0 3px; }
+          .sub  { font-size: 11px; color: #777; margin-bottom: 18px; }
+          .tiles { display: flex; gap: 10px; margin-bottom: 20px; }
+          .tile { flex: 1; border: 1px solid #e3e3e3; border-radius: 8px; padding: 10px 12px; }
+          .tile .v { font-size: 20px; font-weight: 700; }
+          .tile .l { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: 0.4px; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          th    { text-align: left; padding: 4px 8px; background: #f0f0f0;
+                  font-size: 10px; font-weight: 600; color: #555;
+                  text-transform: uppercase; letter-spacing: 0.4px; }
+          td    { padding: 5px 8px; border-bottom: 1px solid #eee; }
+          .name { font-weight: 500; }
+          .dose { color: #555; }
+          .num  { text-align: right; }
+          th.num { text-align: right; }
+          .good { color: #1a7a4a; font-weight: 600; }
+          .ok   { color: #b8870f; font-weight: 600; }
+          .low  { color: #c0392b; font-weight: 600; }
+          .note { font-size: 9px; color: #999; margin-top: 16px; }
+        </style>
+        </head>
+        <body>
+          <h1>StreakMed — Adherence Report</h1>
+          <p class="sub">\(dateFmt.string(from: report.start)) – \(dateFmt.string(from: report.end)) · Exported \(exportFmt.string(from: Date()))</p>
+          <div class="tiles">
+            <div class="tile"><div class="v">\(report.percent)%</div><div class="l">Overall adherence</div></div>
+            <div class="tile"><div class="v">\(report.taken) / \(report.scheduled)</div><div class="l">Doses taken</div></div>
+            <div class="tile"><div class="v">\(report.perfectDays) / \(report.countedDays)</div><div class="l">Perfect days</div></div>
+            <div class="tile"><div class="v">\(report.missedDays)</div><div class="l">Days fully missed</div></div>
+          </div>
+          <table>
+            <tr><th>Medication</th><th>Dose</th><th class="num">Taken / Scheduled</th><th class="num">Adherence</th></tr>
+            \(rows)
+          </table>
+          <p class="note">Counts only days each medication was scheduled, from the day it was added. Days marked as skipped in the app are excluded. Generated on-device by StreakMed.</p>
+        </body>
+        </html>
+        """
+
+        guard let data = renderHTMLtoPDF(html: html) else { return nil }
+        return writeTempFile(name: "StreakMed_Adherence_Report.pdf", data: data)
+    }
+
     // MARK: - Private helpers
 
     private static func fetchAllLogs(context: NSManagedObjectContext) -> [DoseLog] {

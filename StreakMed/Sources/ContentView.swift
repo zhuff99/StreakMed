@@ -52,6 +52,14 @@ struct ContentView: View {
         _store = StateObject(
             wrappedValue: MedicationStore(context: PersistenceController.shared.container.viewContext)
         )
+        #if DEBUG
+        // `-tab settings` launch argument opens the app on a given tab (headless UI checks).
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-tab"), i + 1 < args.count,
+           let tab = AppTab(rawValue: args[i + 1]) {
+            _selectedTab = State(initialValue: tab)
+        }
+        #endif
     }
 
     var body: some View {

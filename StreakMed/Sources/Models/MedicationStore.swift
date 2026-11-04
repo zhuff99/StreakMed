@@ -182,6 +182,7 @@ final class MedicationStore: ObservableObject {
         defaults.set(takenTodayCount,     forKey: "widget_taken")
         defaults.set(scheduledTodayCount, forKey: "widget_total")
         defaults.set(currentStreak,       forKey: "widget_streak")
+        defaults.set(AppTheme.accentTheme.dark, forKey: "widget_accent")
         if let next = pendingDoseItems.first {
             defaults.set(next.medication.name ?? "",                           forKey: "widget_next_name")
             defaults.set(next.scheduledTime?.timeIntervalSince1970 ?? 0,       forKey: "widget_next_time")
@@ -637,7 +638,9 @@ final class MedicationStore: ObservableObject {
             let day = cal.date(byAdding: .day, value: offset, to: monthStart)!
             let scheduledForDay = medications.filter { $0.isScheduled(on: day) }
             guard !scheduledForDay.isEmpty else { continue }
-            totalScheduled += scheduledForDay.count
+            // Count dose slots, not meds — taken logs are per dose, so a twice-daily
+            // med counted as 1 would push the rate past 100%.
+            totalScheduled += scheduledForDay.reduce(0) { $0 + max(1, $1.doseTimesArray.count) }
 
             let nextDay = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: day))!
             let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
@@ -648,7 +651,85 @@ final class MedicationStore: ObservableObject {
             totalTaken += (try? viewContext.count(for: req)) ?? 0
         }
 
-        return totalScheduled > 0 ? Int((Double(totalTaken) / Double(totalScheduled)) * 100) : 0
+        return totalScheduled > 0 ? min(100, Int((Double(totalTaken) / Double(totalScheduled)) * 100)) : 0
+    }
+
+    // MARK: - Adherence report (Plus)
+
+    struct MedAdherence {
+        let name: String
+        let dose: String
+        let scheduled: Int
+        let taken: Int
+        var percent: Int { scheduled > 0 ? min(100, Int((Double(taken) / Double(scheduled)) * 100)) : 0 }
+    }
+
+    struct AdherenceReport {
+        let start: Date
+        let end: Date            // inclusive, the last full day counted
+        let meds: [MedAdherence]
+        let perfectDays: Int
+        let missedDays: Int
+        let countedDays: Int
+        var scheduled: Int { meds.reduce(0) { $0 + $1.scheduled } }
+        var taken: Int     { meds.reduce(0) { $0 + $1.taken } }
+        var percent: Int   { scheduled > 0 ? min(100, Int((Double(taken) / Double(scheduled)) * 100)) : 0 }
+    }
+
+    /// Per-medication adherence over the last `days` full days (today excluded,
+    /// since it isn't over yet). Days before a med was added don't count against it.
+    func adherenceReport(days: Int = 30) -> AdherenceReport {
+        let cal   = Calendar.current
+        let today = cal.startOfDay(for: DebugDateManager.shared.currentDate)
+        let end   = cal.date(byAdding: .day, value: -1, to: today)!
+        let start = cal.date(byAdding: .day, value: -days, to: today)!
+
+        // One fetch for the whole window, bucketed by med + day.
+        let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
+        req.predicate = NSPredicate(
+            format: "scheduledDate >= %@ AND scheduledDate < %@ AND status == 'taken'",
+            start as NSDate, today as NSDate
+        )
+        var takenByMedDay: [NSManagedObjectID: [Date: Int]] = [:]
+        for log in (try? viewContext.fetch(req)) ?? [] {
+            guard let med = log.medication, let d = log.scheduledDate else { continue }
+            takenByMedDay[med.objectID, default: [:]][cal.startOfDay(for: d), default: 0] += 1
+        }
+
+        var scheduledFor: [NSManagedObjectID: Int] = [:]
+        var takenFor:     [NSManagedObjectID: Int] = [:]
+        var perfectDays = 0, missedDays = 0, countedDays = 0
+
+        var day = start
+        while day <= end {
+            if !isSkipped(day) {
+                var dayScheduled = 0, dayTaken = 0
+                for med in medications {
+                    guard med.isScheduled(on: day) else { continue }
+                    if let created = med.createdAt, cal.startOfDay(for: created) > day { continue }
+                    let slots = max(1, med.doseTimesArray.count)
+                    let got   = min(slots, takenByMedDay[med.objectID]?[day] ?? 0)
+                    scheduledFor[med.objectID, default: 0] += slots
+                    takenFor[med.objectID, default: 0]     += got
+                    dayScheduled += slots
+                    dayTaken     += got
+                }
+                if dayScheduled > 0 {
+                    countedDays += 1
+                    if dayTaken >= dayScheduled { perfectDays += 1 }
+                    else if dayTaken == 0       { missedDays  += 1 }
+                }
+            }
+            day = cal.date(byAdding: .day, value: 1, to: day)!
+        }
+
+        let meds = medications.map {
+            MedAdherence(name: $0.name ?? "Unknown", dose: $0.dose ?? "",
+                         scheduled: scheduledFor[$0.objectID] ?? 0,
+                         taken: takenFor[$0.objectID] ?? 0)
+        }
+        return AdherenceReport(start: start, end: end, meds: meds,
+                               perfectDays: perfectDays, missedDays: missedDays, countedDays: countedDays)
     }
 
     /// Count missed days this month (scheduled days with 0 taken)

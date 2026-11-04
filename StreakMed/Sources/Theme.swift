@@ -37,10 +37,14 @@ struct AppTheme {
     static var surfaceAlt: Color { dynamic(dark: "22263A", light: "EAECF2") }
     static var border:     Color { dynamic(dark: "2A2F45", light: "D4D7E2") }
 
-    // ── Accent (mint green) ──────────────────────────────────────────
-    static var accent:     Color { dynamic(dark: "4FFFB0", light: "34D88F") }
-    static var accentDim:  Color { dynamic(dark: "1A3D2E", light: "E0F8ED") }
-    static var accentText: Color { dynamic(dark: "3DD68C", light: "28A96A") }
+    // ── Accent (user-selectable, Plus feature) ───────────────────────
+    /// Active accent theme. Settings writes this; views read AppTheme.accent
+    /// as before and pick up the change on their next render.
+    static var accentTheme: AccentTheme = AccentTheme.stored
+
+    static var accent:     Color { dynamic(dark: accentTheme.dark,     light: accentTheme.light) }
+    static var accentDim:  Color { dynamic(dark: accentTheme.dimDark,  light: accentTheme.dimLight) }
+    static var accentText: Color { dynamic(dark: accentTheme.textDark, light: accentTheme.textLight) }
     static var accentFG:   Color { dynamic(dark: "0A1A12", light: "FFFFFF") }
 
     // ── Blue ─────────────────────────────────────────────────────────
@@ -62,6 +66,92 @@ struct AppTheme {
 
     // ── Partial (yellow) ─────────────────────────────────────────────
     static var partial:    Color { dynamic(dark: "FFD166", light: "E6B84D") }
+}
+
+// MARK: - Accent themes (Plus)
+
+/// Each theme carries explicit light/dark values for the three accent slots
+/// so contrast stays correct instead of being derived by opacity.
+enum AccentTheme: String, CaseIterable, Identifiable {
+    case mint, sky, lavender, coral, gold
+
+    static let storageKey = "accentTheme"
+
+    var id: String { rawValue }
+
+    static var stored: AccentTheme {
+        AccentTheme(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .mint
+    }
+
+    var name: String {
+        switch self {
+        case .mint:     return "Mint"
+        case .sky:      return "Sky"
+        case .lavender: return "Lavender"
+        case .coral:    return "Coral"
+        case .gold:     return "Gold"
+        }
+    }
+
+    var dark: String {
+        switch self {
+        case .mint:     return "4FFFB0"
+        case .sky:      return "64D2FF"
+        case .lavender: return "C97BFF"
+        case .coral:    return "FF8A65"
+        case .gold:     return "FFD166"
+        }
+    }
+
+    var light: String {
+        switch self {
+        case .mint:     return "34D88F"
+        case .sky:      return "2BA8E8"
+        case .lavender: return "9B5CE6"
+        case .coral:    return "E8613A"
+        case .gold:     return "D9A520"
+        }
+    }
+
+    var dimDark: String {
+        switch self {
+        case .mint:     return "1A3D2E"
+        case .sky:      return "16303D"
+        case .lavender: return "2E1F3D"
+        case .coral:    return "3D2219"
+        case .gold:     return "3D3119"
+        }
+    }
+
+    var dimLight: String {
+        switch self {
+        case .mint:     return "E0F8ED"
+        case .sky:      return "E0F3FC"
+        case .lavender: return "F0E6FC"
+        case .coral:    return "FDEAE3"
+        case .gold:     return "FBF3DC"
+        }
+    }
+
+    var textDark: String {
+        switch self {
+        case .mint:     return "3DD68C"
+        case .sky:      return "4EC2F2"
+        case .lavender: return "B86BF2"
+        case .coral:    return "F27A55"
+        case .gold:     return "F2C14E"
+        }
+    }
+
+    var textLight: String {
+        switch self {
+        case .mint:     return "28A96A"
+        case .sky:      return "1E8FC9"
+        case .lavender: return "8347D1"
+        case .coral:    return "CC4F2B"
+        case .gold:     return "B8870F"
+        }
+    }
 }
 
 // MARK: - Color hex initializer

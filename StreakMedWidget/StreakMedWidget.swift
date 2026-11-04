@@ -11,7 +11,16 @@ private let widgetGroupID = "group.com.zacharyhuff.StreakMed"
 private extension Color {
     static let smBg      = Color(red: 0.051, green: 0.051, blue: 0.051)   // #0D0D0D
     static let smSurface = Color(red: 0.102, green: 0.102, blue: 0.102)   // #1A1A1A
-    static let smAccent  = Color(red: 0.310, green: 1.000, blue: 0.690)   // #4FFFB0
+    /// Follows the app's accent theme (Plus feature); falls back to mint #4FFFB0.
+    static var smAccent: Color {
+        guard let hex = UserDefaults(suiteName: widgetGroupID)?.string(forKey: "widget_accent"),
+              hex.count == 6, let int = UInt64(hex, radix: 16) else {
+            return Color(red: 0.310, green: 1.000, blue: 0.690)
+        }
+        return Color(red:   Double((int >> 16) & 0xFF) / 255,
+                     green: Double((int >> 8)  & 0xFF) / 255,
+                     blue:  Double(int & 0xFF)         / 255)
+    }
     static let smText    = Color.white
     static let smMuted   = Color(white: 0.55)
     static let smDim     = Color(white: 0.25)
