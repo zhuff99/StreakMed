@@ -381,7 +381,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = StreakMed/StreakMed.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = M747DGA4CZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -390,6 +390,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "StreakMed uses your camera to scan prescription labels.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "StreakMed uses Face ID to protect your medication data.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "StreakMed reads your medication list from Apple Health so you can import your medications without typing them in.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "StreakMed does not write any data to Apple Health. It only reads your medication list when you choose to import it.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -425,7 +426,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = StreakMed/StreakMed.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = M747DGA4CZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -434,6 +435,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "StreakMed uses your camera to scan prescription labels.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "StreakMed uses Face ID to protect your medication data.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "StreakMed reads your medication list from Apple Health so you can import your medications without typing them in.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "StreakMed does not write any data to Apple Health. It only reads your medication list when you choose to import it.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -469,7 +471,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = StreakMedWidget/StreakMedWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = M747DGA4CZ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -502,7 +504,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = StreakMedWidget/StreakMedWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = M747DGA4CZ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
