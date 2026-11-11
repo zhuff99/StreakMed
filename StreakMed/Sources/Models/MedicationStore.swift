@@ -681,7 +681,7 @@ final class MedicationStore: ObservableObject {
         return totalScheduled > 0 ? min(100, Int((Double(totalTaken) / Double(totalScheduled)) * 100)) : 0
     }
 
-    // MARK: - Adherence report (Plus)
+    // MARK: - Adherence report
 
     struct MedAdherence {
         let name: String

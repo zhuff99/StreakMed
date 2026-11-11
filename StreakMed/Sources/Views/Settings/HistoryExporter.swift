@@ -105,7 +105,7 @@ struct HistoryExporter {
         return writeTempFile(name: "StreakMed_History.pdf", data: data)
     }
 
-    // MARK: - Adherence report (Plus)
+    // MARK: - Adherence report
 
     static func makeAdherenceReport(_ report: MedicationStore.AdherenceReport) -> URL? {
         let dateFmt   = DateFormatter(); dateFmt.dateStyle   = .medium

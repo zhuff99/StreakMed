@@ -33,7 +33,6 @@ struct StreakMedApp: App {
                         .environment(\.managedObjectContext, persistence.container.viewContext)
                 }
             }
-            .environmentObject(PlusStore.shared)
             .preferredColorScheme(preferredScheme)
         }
     }

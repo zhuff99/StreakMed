@@ -37,7 +37,7 @@ struct AppTheme {
     static var surfaceAlt: Color { dynamic(dark: "22263A", light: "EAECF2") }
     static var border:     Color { dynamic(dark: "2A2F45", light: "D4D7E2") }
 
-    // ── Accent (user-selectable, Plus feature) ───────────────────────
+    // ── Accent (user-selectable) ─────────────────────────────────
     /// Active accent theme. Settings writes this; views read AppTheme.accent
     /// as before and pick up the change on their next render.
     static var accentTheme: AccentTheme = AccentTheme.stored
@@ -68,7 +68,7 @@ struct AppTheme {
     static var partial:    Color { dynamic(dark: "FFD166", light: "E6B84D") }
 }
 
-// MARK: - Accent themes (Plus)
+// MARK: - Accent themes
 
 /// Each theme carries explicit light/dark values for the three accent slots
 /// so contrast stays correct instead of being derived by opacity.

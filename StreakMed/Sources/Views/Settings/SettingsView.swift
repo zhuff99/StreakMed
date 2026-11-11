@@ -5,7 +5,6 @@ import CoreData
 
 struct SettingsView: View {
     @EnvironmentObject var store: MedicationStore
-    @EnvironmentObject var plus:  PlusStore
 
     // All persisted with @AppStorage so they survive app restarts
     @AppStorage("notificationsEnabled")      var notificationsEnabled      = true
@@ -20,7 +19,6 @@ struct SettingsView: View {
     @State private var showPermissionAlert = false  // shown when toggling on but permission is denied
     @State private var showExportPicker    = false  // confirmation dialog: CSV vs PDF
     @State private var isExporting        = false  // prevents double-taps while generating
-    @State private var showPaywall        = false
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
 
     private var themeSubtitle: String {
@@ -59,11 +57,6 @@ struct SettingsView: View {
                     .padding(.top, 20)
                     .padding(.bottom, 28)
 
-                // ── StreakMed Plus ────────────────────────────────────────
-                PlusCard(showPaywall: $showPaywall)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
-
                 // ── Appearance ────────────────────────────────────────────
                 SettingsCard(title: "Appearance") {
                     HStack {
@@ -90,12 +83,9 @@ struct SettingsView: View {
 
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text("Accent")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(AppTheme.text)
-                                if !plus.isPlus { PlusTag() }
-                            }
+                            Text("Accent")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(AppTheme.text)
                             Text(AppTheme.accentTheme.name)
                                 .font(.system(size: 11))
                                 .foregroundColor(AppTheme.textDim)
@@ -290,21 +280,19 @@ struct SettingsView: View {
                     SettingsLinkRow(
                         label: isExporting ? "Preparing export…" : "Export History",
                         icon:  "arrow.up.doc.fill",
-                        color: AppTheme.accent,
-                        tag:   plus.isPlus ? nil : "PLUS"
+                        color: AppTheme.accent
                     ) {
                         guard !isExporting else { return }
-                        if plus.isPlus { showExportPicker = true } else { showPaywall = true }
+                        showExportPicker = true
                     }
                     Divider().background(AppTheme.border)
                     SettingsLinkRow(
                         label: "Adherence Report",
                         icon:  "chart.bar.doc.horizontal",
-                        color: AppTheme.blue,
-                        tag:   plus.isPlus ? nil : "PLUS"
+                        color: AppTheme.blue
                     ) {
                         guard !isExporting else { return }
-                        if plus.isPlus { exportHistory(format: "report") } else { showPaywall = true }
+                        exportHistory(format: "report")
                     }
                 }
                 .padding(.horizontal, 24)
@@ -361,16 +349,10 @@ struct SettingsView: View {
             }
         }
         .background(AppTheme.bg)
-        .sheet(isPresented: $showPaywall) {
-            PaywallSheet().environmentObject(plus)
-        }
         .onAppear {
             NotificationManager.shared.checkPermissionStatus { status in
                 notifStatus = status
             }
-            #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("-paywall") { showPaywall = true }
-            #endif
         }
         .confirmationDialog("Export History", isPresented: $showExportPicker, titleVisibility: .visible) {
             Button("Export as CSV") { exportHistory(format: "csv") }
@@ -398,10 +380,9 @@ struct SettingsView: View {
         return "\(version) (\(build))"
     }
 
-    /// Applies an accent theme (Plus) and nudges every store-observing view to
+    /// Applies an accent theme and nudges every store-observing view to
     /// re-render, since AppTheme.accent is a static the views don't observe.
     private func selectAccent(_ theme: AccentTheme) {
-        guard plus.isPlus else { showPaywall = true; return }
         guard theme != AppTheme.accentTheme else { return }
         AppTheme.accentTheme = theme
         accentThemeRaw = theme.rawValue
@@ -449,84 +430,6 @@ struct SettingsView: View {
                                                               y: window.bounds.midY,
                                                               width: 0, height: 0)
         root.present(av, animated: true)
-    }
-}
-
-// MARK: - Plus card
-
-/// Upsell when free; status + manage link once subscribed.
-struct PlusCard: View {
-    @EnvironmentObject var plus: PlusStore
-    @Binding var showPaywall: Bool
-
-    var body: some View {
-        SettingsCard(title: "StreakMed Plus") {
-            if plus.isPlus {
-                HStack(spacing: 12) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(AppTheme.accent)
-                        .frame(width: 20)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Plus is active")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(AppTheme.text)
-                        Text("Thanks for supporting StreakMed")
-                            .font(.system(size: 11))
-                            .foregroundColor(AppTheme.textDim)
-                    }
-                    Spacer()
-                }
-                .padding(.vertical, 8)
-                Divider().background(AppTheme.border)
-                SettingsLinkRow(label: "Manage Subscription", icon: "creditcard", color: AppTheme.textMuted) {
-                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                        UIApplication.shared.open(url)
-                    }
-                }
-            } else {
-                Button { showPaywall = true } label: {
-                    HStack(spacing: 12) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(AppTheme.accentDim)
-                                .frame(width: 36, height: 36)
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(AppTheme.accent)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Upgrade to Plus")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(AppTheme.text)
-                            Text("Exports, adherence reports, and themes")
-                                .font(.system(size: 11))
-                                .foregroundColor(AppTheme.textDim)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(AppTheme.textDim)
-                    }
-                    .padding(.vertical, 6)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-}
-
-/// Small "PLUS" chip shown next to gated controls for free users.
-struct PlusTag: View {
-    var body: some View {
-        Text("PLUS")
-            .font(.system(size: 9, weight: .bold))
-            .tracking(0.5)
-            .foregroundColor(AppTheme.accentText)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(AppTheme.accentDim)
-            .cornerRadius(4)
     }
 }
 
@@ -658,7 +561,6 @@ struct ScanningSettingsCard: View {
 struct DevToolsCard: View {
     @ObservedObject private var debug = DebugDateManager.shared
     @EnvironmentObject var store: MedicationStore
-    @EnvironmentObject var plus:  PlusStore
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showFullResetConfirm = false
     @State private var simulateStreakDays = 7
@@ -672,15 +574,6 @@ struct DevToolsCard: View {
 
     var body: some View {
         SettingsCard(title: "🛠 Dev Tools") {
-            // Bypass StoreKit so Plus features can be exercised without a sandbox account
-            SettingsToggleRow(
-                label: "Force Plus",
-                sub:   plus.hasEntitlement ? "Real entitlement active" : "No StoreKit entitlement",
-                isOn:  $plus.debugForcePlus
-            )
-
-            Divider().background(AppTheme.border)
-
             // Current simulated date
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -1149,7 +1042,6 @@ struct SettingsLinkRow: View {
     let label:  String
     let icon:   String
     let color:  Color
-    var tag:    String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -1162,7 +1054,6 @@ struct SettingsLinkRow: View {
                 Text(label)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(AppTheme.text)
-                if tag != nil { PlusTag() }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .medium))
