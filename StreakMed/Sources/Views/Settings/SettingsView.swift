@@ -13,7 +13,8 @@ struct SettingsView: View {
     @AppStorage("missedDoseReminderEnabled") var missedDoseReminderEnabled  = true
     @AppStorage("missedDoseFollowUpHours")   var missedDoseFollowUpHours    = 2
     @AppStorage("appTheme")                  var appTheme                   = "dark"
-    @AppStorage(AccentTheme.storageKey)      var accentThemeRaw             = AccentTheme.mint.rawValue
+    @AppStorage(AppPalette.storageKey)       var paletteRaw                 = AppPalette.midnight.rawValue
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var notifStatus: UNAuthorizationStatus = .notDetermined  // live iOS permission status
     @State private var showPermissionAlert = false  // shown when toggling on but permission is denied
@@ -81,32 +82,16 @@ struct SettingsView: View {
 
                     Divider().background(AppTheme.border)
 
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Accent")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(AppTheme.text)
-                            Text(AppTheme.accentTheme.name)
-                                .font(.system(size: 11))
-                                .foregroundColor(AppTheme.textDim)
-                        }
-                        Spacer()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Theme")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(AppTheme.text)
                         HStack(spacing: 10) {
-                            ForEach(AccentTheme.allCases) { theme in
-                                let isActive = theme == AppTheme.accentTheme
-                                Button { selectAccent(theme) } label: {
-                                    Circle()
-                                        .fill(Color(hex: theme.dark))
-                                        .frame(width: 24, height: 24)
-                                        .overlay(
-                                            Circle().stroke(AppTheme.text.opacity(isActive ? 0.9 : 0), lineWidth: 2)
-                                        )
-                                        .overlay(
-                                            Image(systemName: "checkmark")
-                                                .font(.system(size: 10, weight: .bold))
-                                                .foregroundColor(AppTheme.accentFG)
-                                                .opacity(isActive ? 1 : 0)
-                                        )
+                            ForEach(AppPalette.allCases) { theme in
+                                Button { selectTheme(theme) } label: {
+                                    ThemeSwatch(theme: theme,
+                                                isSelected: theme.rawValue == paletteRaw,
+                                                isDark: colorScheme == .dark)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -380,12 +365,12 @@ struct SettingsView: View {
         return "\(version) (\(build))"
     }
 
-    /// Applies an accent theme and nudges every store-observing view to
-    /// re-render, since AppTheme.accent is a static the views don't observe.
-    private func selectAccent(_ theme: AccentTheme) {
-        guard theme != AppTheme.accentTheme else { return }
-        AppTheme.accentTheme = theme
-        accentThemeRaw = theme.rawValue
+    /// Switches the full app theme. ContentView keys its tab content on
+    /// `paletteRaw`, so every screen redraws with the new colours.
+    private func selectTheme(_ theme: AppPalette) {
+        guard theme.rawValue != paletteRaw else { return }
+        AppTheme.palette = theme
+        paletteRaw = theme.rawValue
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         store.objectWillChange.send()
         store.updateWidgetSnapshot()
@@ -430,6 +415,60 @@ struct SettingsView: View {
                                                               y: window.bounds.midY,
                                                               width: 0, height: 0)
         root.present(av, animated: true)
+    }
+}
+
+// MARK: - Theme swatch
+
+/// Miniature of a theme in its own colours: page, a card, an accent button.
+struct ThemeSwatch: View {
+    let theme: AppPalette
+    let isSelected: Bool
+    let isDark: Bool
+
+    private var p: Palette { isDark ? theme.dark : theme.light }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(hex: p.bg))
+                .overlay(
+                    VStack(alignment: .leading, spacing: 5) {
+                        RoundedRectangle(cornerRadius: 3).fill(Color(hex: p.text)).frame(width: 22, height: 4)
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(hex: p.surface))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: p.border), lineWidth: 1))
+                            .overlay(
+                                HStack(spacing: 4) {
+                                    Circle().fill(Color(hex: p.accent)).frame(width: 8, height: 8)
+                                    RoundedRectangle(cornerRadius: 2).fill(Color(hex: p.textMuted)).frame(height: 3)
+                                }
+                                .padding(.horizontal, 6)
+                            )
+                            .frame(height: 20)
+                        Capsule().fill(Color(hex: p.accent)).frame(width: 30, height: 8)
+                    }
+                    .padding(8)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isSelected ? AppTheme.accent : AppTheme.border, lineWidth: isSelected ? 2 : 1)
+                )
+                .frame(height: 68)
+            HStack(spacing: 3) {
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                Text(theme.name)
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
+            }
+            .foregroundColor(isSelected ? AppTheme.text : AppTheme.textMuted)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(theme.name) theme")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

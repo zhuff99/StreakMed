@@ -19,137 +19,142 @@ private extension UIColor {
 
 // MARK: - App Theme
 
-/// All colours resolve dynamically based on the current UITraitCollection,
-/// so they automatically adapt whenever preferredColorScheme changes.
+/// All colours resolve dynamically from the active `AppPalette` and the current
+/// UITraitCollection, so they adapt to light/dark and to a theme switch the
+/// next time they're drawn. Views keep reading `AppTheme.bg`, `AppTheme.accent`, ….
 struct AppTheme {
 
-    /// Creates a SwiftUI Color that resolves to `dark` hex in dark mode
-    /// and `light` hex in light mode.
-    private static func dynamic(dark: String, light: String) -> Color {
+    /// Active theme. Written only on the main thread by Settings (`ThemePicker`).
+    nonisolated(unsafe) static var palette: AppPalette = AppPalette.stored
+
+    private static func dynamic(_ key: KeyPath<Palette, String>) -> Color {
         Color(UIColor { traits in
-            UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light)
+            let p = traits.userInterfaceStyle == .dark ? palette.dark : palette.light
+            return UIColor(hex: p[keyPath: key])
         })
     }
 
     // ── Backgrounds ──────────────────────────────────────────────────
-    static var bg:         Color { dynamic(dark: "0F1117", light: "F2F3F8") }
-    static var surface:    Color { dynamic(dark: "1A1D27", light: "FFFFFF") }
-    static var surfaceAlt: Color { dynamic(dark: "22263A", light: "EAECF2") }
-    static var border:     Color { dynamic(dark: "2A2F45", light: "D4D7E2") }
+    static var bg:         Color { dynamic(\.bg) }
+    static var surface:    Color { dynamic(\.surface) }
+    static var surfaceAlt: Color { dynamic(\.surfaceAlt) }
+    static var border:     Color { dynamic(\.border) }
 
-    // ── Accent (user-selectable) ─────────────────────────────────
-    /// Active accent theme. Settings writes this; views read AppTheme.accent
-    /// as before and pick up the change on their next render.
-    static var accentTheme: AccentTheme = AccentTheme.stored
-
-    static var accent:     Color { dynamic(dark: accentTheme.dark,     light: accentTheme.light) }
-    static var accentDim:  Color { dynamic(dark: accentTheme.dimDark,  light: accentTheme.dimLight) }
-    static var accentText: Color { dynamic(dark: accentTheme.textDark, light: accentTheme.textLight) }
-    static var accentFG:   Color { dynamic(dark: "0A1A12", light: "FFFFFF") }
+    // ── Accent ───────────────────────────────────────────────────────
+    static var accent:     Color { dynamic(\.accent) }
+    static var accentDim:  Color { dynamic(\.accentDim) }
+    static var accentText: Color { dynamic(\.accentText) }
+    static var accentFG:   Color { dynamic(\.accentFG) }
 
     // ── Blue ─────────────────────────────────────────────────────────
-    static var blue:       Color { dynamic(dark: "5B8BFF", light: "4A7AEE") }
-    static var blueDim:    Color { dynamic(dark: "1A2340", light: "E5ECFF") }
+    static var blue:       Color { dynamic(\.blue) }
+    static var blueDim:    Color { dynamic(\.blueDim) }
 
     // ── Warning (orange) ─────────────────────────────────────────────
-    static var warn:       Color { dynamic(dark: "FF7A50", light: "E86840") }
-    static var warnDim:    Color { dynamic(dark: "3D1F15", light: "FFF0EB") }
+    static var warn:       Color { dynamic(\.warn) }
+    static var warnDim:    Color { dynamic(\.warnDim) }
 
     // ── Missed (red) ─────────────────────────────────────────────────
-    static var missed:     Color { dynamic(dark: "FF4F4F", light: "E63E3E") }
-    static var missedDim:  Color { dynamic(dark: "3D1212", light: "FFECEC") }
+    static var missed:     Color { dynamic(\.missed) }
+    static var missedDim:  Color { dynamic(\.missedDim) }
 
     // ── Text ─────────────────────────────────────────────────────────
-    static var text:       Color { dynamic(dark: "F0F2FF", light: "1A1D27") }
-    static var textMuted:  Color { dynamic(dark: "7B80A0", light: "6B7085") }
-    static var textDim:    Color { dynamic(dark: "4A4F6A", light: "A0A4B8") }
+    static var text:       Color { dynamic(\.text) }
+    static var textMuted:  Color { dynamic(\.textMuted) }
+    static var textDim:    Color { dynamic(\.textDim) }
 
-    // ── Partial (yellow) ─────────────────────────────────────────────
-    static var partial:    Color { dynamic(dark: "FFD166", light: "E6B84D") }
+    // ── Partial (gold) ───────────────────────────────────────────────
+    static var partial:    Color { dynamic(\.partial) }
 }
 
-// MARK: - Accent themes
+// MARK: - Themes
 
-/// Each theme carries explicit light/dark values for the three accent slots
-/// so contrast stays correct instead of being derived by opacity.
-enum AccentTheme: String, CaseIterable, Identifiable {
-    case mint, sky, lavender, coral, gold
+/// One mode's worth of hex values for every AppTheme slot.
+struct Palette {
+    let bg, surface, surfaceAlt, border: String
+    let accent, accentDim, accentText, accentFG: String
+    let blue, blueDim, warn, warnDim, missed, missedDim: String
+    let text, textMuted, textDim, partial: String
+}
 
-    static let storageKey = "accentTheme"
+/// Full app themes. Each has its own light and dark palette; the user's
+/// Light / System / Dark choice still picks between them.
+/// Raw values are persisted under `storageKey` — never rename a case.
+enum AppPalette: String, CaseIterable, Identifiable {
+    case midnight, ink, forest, graphite
+
+    static let storageKey = "appPalette"
 
     var id: String { rawValue }
 
-    static var stored: AccentTheme {
-        AccentTheme(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .mint
+    static var stored: AppPalette {
+        AppPalette(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .midnight
     }
 
     var name: String {
         switch self {
-        case .mint:     return "Mint"
-        case .sky:      return "Sky"
-        case .lavender: return "Lavender"
-        case .coral:    return "Coral"
-        case .gold:     return "Gold"
+        case .midnight: return "Midnight"
+        case .ink:      return "Ink"
+        case .forest:   return "Forest"
+        case .graphite: return "Graphite"
         }
     }
 
-    var dark: String {
+    var dark: Palette {
         switch self {
-        case .mint:     return "4FFFB0"
-        case .sky:      return "64D2FF"
-        case .lavender: return "C97BFF"
-        case .coral:    return "FF8A65"
-        case .gold:     return "FFD166"
+        case .midnight:
+            return Palette(bg: "0F1117", surface: "1A1D27", surfaceAlt: "22263A", border: "2A2F45",
+                           accent: "4FFFB0", accentDim: "1A3D2E", accentText: "3DD68C", accentFG: "0A1A12",
+                           blue: "5B8BFF", blueDim: "1A2340", warn: "FF7A50", warnDim: "3D1F15",
+                           missed: "FF4F4F", missedDim: "3D1212",
+                           text: "F0F2FF", textMuted: "7B80A0", textDim: "4A4F6A", partial: "FFD166")
+        case .ink:
+            return Palette(bg: "0F0E16", surface: "1A1825", surfaceAlt: "242136", border: "2E2A44",
+                           accent: "B69CFF", accentDim: "2A2342", accentText: "A68BFF", accentFG: "140F24",
+                           blue: "6E9BFF", blueDim: "1B2442", warn: "FF7A50", warnDim: "3D1F15",
+                           missed: "FF5C6C", missedDim: "3D141A",
+                           text: "F1EFFF", textMuted: "8580A3", textDim: "4E4A68", partial: "FFD166")
+        case .forest:
+            return Palette(bg: "161513", surface: "201E1B", surfaceAlt: "2A2824", border: "35322D",
+                           accent: "7BC59A", accentDim: "23332A", accentText: "8FD3AC", accentFG: "0F1A13",
+                           blue: "7AA2E0", blueDim: "1E2633", warn: "E08A5E", warnDim: "3A241A",
+                           missed: "E5675F", missedDim: "3A1A17",
+                           text: "F1ECE3", textMuted: "9C958A", textDim: "5E584F", partial: "E3B15C")
+        case .graphite:
+            return Palette(bg: "111111", surface: "1C1C1E", surfaceAlt: "2A2A2C", border: "323234",
+                           accent: "64D2FF", accentDim: "15303B", accentText: "4EC2F2", accentFG: "06171F",
+                           blue: "7B9CFF", blueDim: "1C2236", warn: "FF8A50", warnDim: "3B2015",
+                           missed: "FF5F57", missedDim: "3A1716",
+                           text: "F2F2F2", textMuted: "9A9A9E", textDim: "5A5A5E", partial: "FFD166")
         }
     }
 
-    var light: String {
+    var light: Palette {
         switch self {
-        case .mint:     return "34D88F"
-        case .sky:      return "2BA8E8"
-        case .lavender: return "9B5CE6"
-        case .coral:    return "E8613A"
-        case .gold:     return "D9A520"
-        }
-    }
-
-    var dimDark: String {
-        switch self {
-        case .mint:     return "1A3D2E"
-        case .sky:      return "16303D"
-        case .lavender: return "2E1F3D"
-        case .coral:    return "3D2219"
-        case .gold:     return "3D3119"
-        }
-    }
-
-    var dimLight: String {
-        switch self {
-        case .mint:     return "E0F8ED"
-        case .sky:      return "E0F3FC"
-        case .lavender: return "F0E6FC"
-        case .coral:    return "FDEAE3"
-        case .gold:     return "FBF3DC"
-        }
-    }
-
-    var textDark: String {
-        switch self {
-        case .mint:     return "3DD68C"
-        case .sky:      return "4EC2F2"
-        case .lavender: return "B86BF2"
-        case .coral:    return "F27A55"
-        case .gold:     return "F2C14E"
-        }
-    }
-
-    var textLight: String {
-        switch self {
-        case .mint:     return "28A96A"
-        case .sky:      return "1E8FC9"
-        case .lavender: return "8347D1"
-        case .coral:    return "CC4F2B"
-        case .gold:     return "B8870F"
+        case .midnight:
+            return Palette(bg: "F2F3F8", surface: "FFFFFF", surfaceAlt: "EAECF2", border: "D4D7E2",
+                           accent: "34D88F", accentDim: "E0F8ED", accentText: "28A96A", accentFG: "FFFFFF",
+                           blue: "4A7AEE", blueDim: "E5ECFF", warn: "E86840", warnDim: "FFF0EB",
+                           missed: "E63E3E", missedDim: "FFECEC",
+                           text: "1A1D27", textMuted: "6B7085", textDim: "A0A4B8", partial: "E6B84D")
+        case .ink:
+            return Palette(bg: "F5F4FA", surface: "FFFFFF", surfaceAlt: "EDEBF6", border: "DCD8EC",
+                           accent: "8B6CF0", accentDim: "EEE9FD", accentText: "6E4FD8", accentFG: "FFFFFF",
+                           blue: "4A7AEE", blueDim: "E5ECFF", warn: "E86840", warnDim: "FFF0EB",
+                           missed: "E0394D", missedDim: "FDE9EC",
+                           text: "1D1B29", textMuted: "6D6889", textDim: "A9A5BF", partial: "E6B84D")
+        case .forest:
+            return Palette(bg: "F6F3EE", surface: "FFFFFF", surfaceAlt: "EFEAE2", border: "E2DCD1",
+                           accent: "2F7D5B", accentDim: "E3EFE8", accentText: "2F7D5B", accentFG: "FFFFFF",
+                           blue: "3E6FB0", blueDim: "E4ECF6", warn: "C4572E", warnDim: "FBEBE3",
+                           missed: "C23B3B", missedDim: "FAE6E4",
+                           text: "1F2420", textMuted: "6F6A60", textDim: "A8A196", partial: "C98A2B")
+        case .graphite:
+            return Palette(bg: "F2F2F4", surface: "FFFFFF", surfaceAlt: "E9E9EC", border: "D8D8DC",
+                           accent: "1E9BD7", accentDim: "E1F3FC", accentText: "1580B5", accentFG: "FFFFFF",
+                           blue: "4A7AEE", blueDim: "E5ECFF", warn: "E86840", warnDim: "FFF0EB",
+                           missed: "E5484D", missedDim: "FDECEC",
+                           text: "1C1C1E", textMuted: "6E6E73", textDim: "A8A8AD", partial: "E6B84D")
         }
     }
 }

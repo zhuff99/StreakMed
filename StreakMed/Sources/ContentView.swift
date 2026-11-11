@@ -42,6 +42,7 @@ struct ContentView: View {
 
     // Biometric / passcode lock
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
+    @AppStorage(AppPalette.storageKey)  private var paletteRaw = AppPalette.midnight.rawValue
     @State private var isLocked = false
 
     // Badge unlock overlay
@@ -76,11 +77,13 @@ struct ContentView: View {
                 }
             }
             .environmentObject(store)
+            .id(paletteRaw)     // theme switch: rebuild screens so every colour re-resolves
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.bottom, 72)   // room for custom tab bar
 
             // Custom tab bar
             CustomTabBar(selectedTab: $selectedTab)
+                .id(paletteRaw)
 
             // Badge unlock overlay — shown when a new streak milestone is reached.
             if showBadgeUnlock {
