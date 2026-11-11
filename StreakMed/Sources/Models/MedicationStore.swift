@@ -69,6 +69,33 @@ extension Medication {
         return 1
     }
 
+    /// The strength part of the dose string: "2 × 10 mg" → "10 mg".
+    var doseStrength: String {
+        guard let d = dose else { return "" }
+        if let crossRange = d.range(of: " × "), Int(d[d.startIndex..<crossRange.lowerBound]) != nil {
+            return String(d[crossRange.upperBound...])
+        }
+        return d
+    }
+
+    /// Dose as shown to the user. A single pill keeps the compact "10 mg";
+    /// anything else names the unit: "2 tablets · 10 mg", "1 scoop · 5 g".
+    var doseLabel: String {
+        let form = PillShape.from(shape)
+        let qty  = quantityPerDose
+        let strength = doseStrength
+        if form.isPill && qty == 1 { return strength }
+        let count = "\(qty) \(unitNoun(qty))"
+        return strength.isEmpty ? count : "\(count) · \(strength)"
+    }
+
+    /// "scoop"/"puffs"/… for the med's form. Meds saved before forms existed
+    /// have no shape, and calling their tablets "capsules" would be wrong.
+    func unitNoun(_ count: Int) -> String {
+        guard shape != nil else { return count == 1 ? "pill" : "pills" }
+        return PillShape.from(shape).noun(count)
+    }
+
     /// Weekday integers (Calendar.weekday: 1=Sun … 7=Sat) on which this med is taken.
     /// Returns all 7 days if scheduledDays is unset (backwards-compatible default).
     var scheduledWeekdays: Set<Int> {
@@ -724,7 +751,7 @@ final class MedicationStore: ObservableObject {
         }
 
         let meds = medications.map {
-            MedAdherence(name: $0.name ?? "Unknown", dose: $0.dose ?? "",
+            MedAdherence(name: $0.name ?? "Unknown", dose: $0.doseLabel,
                          scheduled: scheduledFor[$0.objectID] ?? 0,
                          taken: takenFor[$0.objectID] ?? 0)
         }

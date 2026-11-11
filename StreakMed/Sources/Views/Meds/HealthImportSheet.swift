@@ -55,7 +55,13 @@ enum HealthMedImporter {
         case .capsule:           return .capsule
         case .inhaler:           return .inhaler
         case .injection:         return .injection
-        case .liquid, .drops:    return .liquid
+        case .liquid:            return .liquid
+        case .drops:             return .drops
+        case .powder:            return .powder
+        case .patch:             return .patch
+        case .spray:             return .spray
+        case .cream, .gel, .lotion, .ointment, .foam, .topical:
+                                 return .cream
         default:                 return .tablet
         }
     }

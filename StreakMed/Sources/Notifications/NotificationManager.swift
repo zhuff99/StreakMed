@@ -53,7 +53,7 @@ final class NotificationManager: NSObject {
             let content        = UNMutableNotificationContent()
             content.title      = notifTitle(name: name, doseIndex: index,
                                             totalDoses: times.count, leadMinutes: leadMinutes)
-            content.body       = med.dose.map { "Take \($0)" } ?? "Don't forget your medication."
+            content.body       = med.dose == nil ? "Don't forget your medication." : "Take \(med.doseLabel)"
             content.sound      = .default
             content.badge      = 1
             // Dose times are exactly what Apple's time-sensitive level is
@@ -154,7 +154,7 @@ final class NotificationManager: NSObject {
         let content        = UNMutableNotificationContent()
         content.title      = notifTitle(name: name, doseIndex: doseIndex,
                                         totalDoses: times.count, leadMinutes: leadMinutes)
-        content.body       = med.dose.map { "Take \($0)" } ?? "Don't forget your medication."
+        content.body       = med.dose == nil ? "Don't forget your medication." : "Take \(med.doseLabel)"
         content.sound      = .default
         content.badge      = 1
         content.interruptionLevel  = .timeSensitive
@@ -207,13 +207,13 @@ final class NotificationManager: NSObject {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
     }
 
-    /// Fires a one-time refill reminder when pills on hand drop to or below 7.
+    /// Fires a one-time refill reminder when the supply on hand drops to or below 7.
     func scheduleRefillNotification(for med: Medication, remaining: Int) {
         guard let name = med.name else { return }
 
         let content       = UNMutableNotificationContent()
         content.title     = "Low Supply: \(name)"
-        content.body      = "Only \(remaining) pill\(remaining == 1 ? "" : "s") left. Time to refill!"
+        content.body      = "Only \(remaining) \(med.unitNoun(remaining)) left. Time to refill!"
         content.sound     = .default
         content.badge     = 1
 

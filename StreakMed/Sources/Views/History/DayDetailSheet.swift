@@ -174,7 +174,7 @@ private struct DayDetailMedRow: View {
                 Text(med.name ?? "")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(isTaken ? AppTheme.text : AppTheme.textMuted)
-                Text(med.dose ?? "")
+                Text(med.doseLabel)
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.textDim)
                 if let notes = med.notes, !notes.isEmpty {

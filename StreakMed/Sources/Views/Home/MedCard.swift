@@ -160,7 +160,7 @@ struct MedCard: View {
 
     // "500 mg · 08:00"  or  "500 mg · Taken at 8:02 AM"
     private var subtitleLine1: String {
-        let dose = med.dose ?? ""
+        let dose = med.doseLabel
         if isTaken, let t = store.takenTime(med, doseIndex: doseIndex) {
             return "\(dose) · Taken at \(formatted(t))"
         }

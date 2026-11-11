@@ -186,7 +186,7 @@ struct MedManageRow: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(AppTheme.text)
 
-                    Text("\(med.dose ?? "") · \(med.type ?? "General") · \(scheduledTimeStr)")
+                    Text("\(med.doseLabel) · \(med.type ?? "General") · \(scheduledTimeStr)")
                         .font(.system(size: 12))
                         .foregroundColor(AppTheme.textDim)
 

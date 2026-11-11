@@ -412,7 +412,7 @@ private struct OnboardingMedRow: View {
                 Text(med.name ?? "")
                     .font(.system(size: isPad ? 17 : 15, weight: .semibold))
                     .foregroundColor(AppTheme.text)
-                Text(med.dose ?? "")
+                Text(med.doseLabel)
                     .font(.system(size: isPad ? 15 : 13))
                     .foregroundColor(AppTheme.textMuted)
             }

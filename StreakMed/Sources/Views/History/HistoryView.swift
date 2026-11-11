@@ -538,7 +538,7 @@ struct TodayLogRow: View {
                 .fill(store.isTakenToday(med) ? AppTheme.accent : AppTheme.textDim)
                 .frame(width: 8, height: 8)
 
-            Text("\(med.name ?? "") \(med.dose ?? "")")
+            Text("\(med.name ?? "") \(med.doseLabel)")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(store.isTakenToday(med) ? AppTheme.text : AppTheme.textMuted)
 

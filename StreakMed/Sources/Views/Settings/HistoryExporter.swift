@@ -20,7 +20,7 @@ struct HistoryExporter {
         for log in logs {
             let date   = log.scheduledDate.map { dateFmt.string(from: $0) } ?? ""
             let name   = csvEscape(log.medication?.name ?? "Unknown")
-            let dose   = csvEscape(log.medication?.dose ?? "")
+            let dose   = csvEscape(log.medication?.doseLabel ?? "")
             let time   = log.takenAt.map { timeFmt.string(from: $0) } ?? ""
             let status = log.status ?? ""
             rows.append("\(date),\(name),\(dose),\(time),\(status)")
@@ -63,7 +63,7 @@ struct HistoryExporter {
             """
             for log in group.logs {
                 let name = log.medication?.name ?? "Unknown"
-                let dose = log.medication?.dose ?? "—"
+                let dose = log.medication?.doseLabel ?? "—"
                 let time = log.takenAt.map { timeFmt.string(from: $0) } ?? "—"
                 tableRows += "<tr><td class=\"name\">\(name)</td><td class=\"dose\">\(dose)</td><td class=\"time\">\(time)</td></tr>"
             }

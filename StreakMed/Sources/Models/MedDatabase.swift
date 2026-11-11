@@ -10,6 +10,25 @@ struct MedDBEntry: Decodable, Identifiable, Hashable {
     var name: String { n }
     var strengths: [String] { s }
 
+    /// Best-guess StreakMed form from the RxTerms dose form, or nil if unclear.
+    /// Order matters: "Pwdr Spray" is a spray, "Ophthalmic Sol" is drops, "Softgel" isn't a cream.
+    var pillShape: PillShape? {
+        let form = f.lowercased()
+        func has(_ keys: String...) -> Bool { keys.contains { form.contains($0) } }
+        if has("patch")                                         { return .patch }
+        if has("inhal")                                         { return .inhaler }
+        if has("spray")                                         { return .spray }
+        if has("pwdr", "powder", "granule")                     { return .powder }
+        if has("softgel", "gelcap")                             { return .oval }
+        if has("drop", "ophth", "otic")                         { return .drops }
+        if has("inject", "syringe", "pen ")                     { return .injection }
+        if has("cream", "gel", "ointment", "lotion", "foam")    { return .cream }
+        if has("sol", "susp", "syrup", "elixir", "liquid")      { return .liquid }
+        if has("cap")                                           { return .capsule }
+        if has("tab")                                           { return .tablet }
+        return nil
+    }
+
     /// Human-readable form for the suggestion row caption.
     var formLabel: String {
         switch f {

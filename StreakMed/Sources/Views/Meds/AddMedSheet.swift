@@ -84,6 +84,7 @@ struct AddMedSheet: View {
     @State private var tempDoseTime:     Date    = Date()
     @State private var showScanner:      Bool    = false
     @State private var selectedShape:    PillShape = .capsule
+    @State private var shapeTouched:     Bool      = false   // user picked a form; autocomplete stops guessing
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     private let notesLimit = 100
@@ -140,6 +141,9 @@ struct AddMedSheet: View {
                                         selectedDBMed = med
                                         name = med.name
                                         suggestions = []
+                                        if !shapeTouched, let form = med.pillShape {
+                                            selectedShape = form
+                                        }
                                         let tappable = med.tappableStrengths
                                         if tappable.count == 1,
                                            let dose = med.doseComponents(for: tappable[0]) {
@@ -244,16 +248,53 @@ struct AddMedSheet: View {
                         }
                     }
 
+                    // ── Form (drives quantity wording) ────────────────────
+                    VStack(alignment: .leading, spacing: 12) {
+                        FieldLabel("Form")
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6), spacing: 8) {
+                            ForEach(PillShape.allCases) { shape in
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        selectedShape = shape
+                                        shapeTouched  = true
+                                    }
+                                } label: {
+                                    let isSelected = selectedShape == shape
+                                    VStack(spacing: 5) {
+                                        Image(systemName: shape.icon)
+                                            .font(.system(size: 17, weight: .medium))
+                                            .foregroundColor(isSelected ? Color(hex: selectedColor) : AppTheme.textDim)
+                                            .frame(height: 20)
+                                        Text(shape.label)
+                                            .font(.system(size: 9, weight: .medium))
+                                            .foregroundColor(isSelected ? AppTheme.text : AppTheme.textDim)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(isSelected ? AppTheme.surfaceAlt : Color.clear)
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(isSelected ? Color(hex: selectedColor).opacity(0.6) : AppTheme.border,
+                                                    lineWidth: 1)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // ── Quantity per dose ─────────────────────────────────
                     VStack(alignment: .leading, spacing: 8) {
                         FieldLabel("Quantity per Dose")
                         Menu {
                             ForEach(1...10, id: \.self) { n in
-                                Button("\(n) \(n == 1 ? "pill" : "pills")") { quantity = n }
+                                Button("\(n) \(selectedShape.noun(n))") { quantity = n }
                             }
                         } label: {
                             HStack {
-                                Text("\(quantity) \(quantity == 1 ? "pill" : "pills")")
+                                Text("\(quantity) \(selectedShape.noun(quantity))")
                                     .font(.system(size: 15))
                                     .foregroundColor(AppTheme.text)
                                 Spacer()
@@ -303,10 +344,10 @@ struct AddMedSheet: View {
                             }
                     }
 
-                    // ── Pills on hand (optional) ─────────────────────────
+                    // ── Supply on hand (optional) ─────────────────────────
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {
-                            FieldLabel("Pills on Hand")
+                            FieldLabel(selectedShape.supplyLabel)
                             Text("optional")
                                 .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(AppTheme.textMuted)
@@ -464,42 +505,6 @@ struct AddMedSheet: View {
                                 }
                             }
                             .frame(maxWidth: .infinity)
-                        }
-                    }
-
-                    // ── Pill shape ────────────────────────────────────────
-                    VStack(alignment: .leading, spacing: 12) {
-                        FieldLabel("Appearance")
-                        HStack(spacing: 10) {
-                            ForEach(PillShape.allCases) { shape in
-                                Button {
-                                    withAnimation(.easeInOut(duration: 0.15)) {
-                                        selectedShape = shape
-                                    }
-                                } label: {
-                                    let isSelected = selectedShape == shape
-                                    VStack(spacing: 5) {
-                                        Image(systemName: shape.icon)
-                                            .font(.system(size: 17, weight: .medium))
-                                            .foregroundColor(isSelected ? Color(hex: selectedColor) : AppTheme.textDim)
-                                            .frame(height: 20)
-                                        Text(shape.label)
-                                            .font(.system(size: 9, weight: .medium))
-                                            .foregroundColor(isSelected ? AppTheme.text : AppTheme.textDim)
-                                            .lineLimit(1)
-                                            .minimumScaleFactor(0.8)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 10)
-                                    .background(isSelected ? AppTheme.surfaceAlt : Color.clear)
-                                    .cornerRadius(10)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(isSelected ? Color(hex: selectedColor).opacity(0.6) : AppTheme.border,
-                                                    lineWidth: 1)
-                                    )
-                                }
-                            }
                         }
                     }
 
