@@ -24,8 +24,15 @@ enum PillShape: String, CaseIterable, Identifiable {
     var isPill: Bool { self == .capsule || self == .tablet || self == .oval || self == .gummy }
 
     var icon: String {
-        let symbol = preferredSymbol
-        return UIImage(systemName: symbol) != nil ? symbol : "pills.fill"
+        symbolCandidates.first { UIImage(systemName: $0) != nil } ?? "pills.fill"
+    }
+
+    /// Best symbol first; later entries cover older iOS versions that lack it.
+    private var symbolCandidates: [String] {
+        switch self {
+        case .powder: return ["waterbottle.fill", "aqi.medium"]   // supplement tub is iOS 17+
+        default:      return [preferredSymbol]
+        }
     }
 
     private var preferredSymbol: String {
@@ -37,7 +44,7 @@ enum PillShape: String, CaseIterable, Identifiable {
         // Vertical oval — softgel silhouette, distinct from the capsule
         case .oval:      return "oval.portrait.fill"
         case .gummy:     return "seal.fill"
-        case .powder:    return "cup.and.saucer.fill"
+        case .powder:    return "waterbottle.fill"
         case .liquid:    return "drop.fill"
         case .drops:     return "eyedropper.halffull"
         case .inhaler:   return "inhaler.fill"
