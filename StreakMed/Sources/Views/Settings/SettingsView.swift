@@ -291,8 +291,7 @@ struct SettingsView: View {
                 // ── About ─────────────────────────────────────────────────
                 SettingsCard(title: "About") {
                     SettingsLinkRow(label: "Rate StreakMed", icon: "star.fill", color: AppTheme.partial) {
-                        // Replace with your App Store ID once published
-                        if let url = URL(string: "https://apps.apple.com/app/id000000000") {
+                        if let url = URL(string: "https://apps.apple.com/app/id6761388451?action=write-review") {
                             UIApplication.shared.open(url)
                         }
                     }
