@@ -1,12 +1,14 @@
 import SwiftUI
 import UIKit
+import Combine
 
 struct HomeView: View {
     @EnvironmentObject var store: MedicationStore
     @ObservedObject private var debug = DebugDateManager.shared
 
     @State private var showConfirmSheet  = false
-    @State private var justTakenID: UUID?        // set briefly when a Take button is pressed — drives the scale animation
+    @State private var justTakenID: String?      // DoseItem id, set briefly when Take is pressed — drives the scale animation
+    @State private var minuteTick = Date()       // redraws cards each minute so "Overdue" appears on time
     @State private var showAllDoneBanner = false // shown for 2.5 s after "Mark All Taken"
 
     // Undo state
@@ -43,7 +45,7 @@ struct HomeView: View {
 
                         VStack(spacing: 10) {
                             ForEach(store.pendingDoseItems) { item in
-                                MedCard(med: item.medication, doseIndex: item.doseIndex, justTakenID: $justTakenID) {
+                                MedCard(med: item.medication, doseIndex: item.doseIndex, justTakenID: $justTakenID, minuteTick: minuteTick) {
                                     handleTake(item)
                                 }
                             }
@@ -109,6 +111,7 @@ struct HomeView: View {
         .onAppear {
             store.refresh()
         }
+        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { minuteTick = $0 }
     }
 
     // MARK: - Floating overlay (Mark All button / Undo toast / All Done banner)
@@ -198,9 +201,9 @@ struct HomeView: View {
     /// then after a short delay marks the dose, resets the animation state,
     /// and shows an undo toast.
     private func handleTake(_ item: DoseItem) {
-        guard let id = item.medication.id else { return }
+        guard justTakenID == nil else { return }   // ignore a second tap mid-animation
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        withAnimation(.easeInOut(duration: 0.15)) { justTakenID = id }
+        withAnimation(.easeInOut(duration: 0.15)) { justTakenID = item.id }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                 store.markTaken(item.medication, doseIndex: item.doseIndex)

@@ -358,7 +358,7 @@ struct SettingsView: View {
                     }
                     Divider().background(AppTheme.border)
                     SettingsLinkRow(label: "Privacy Policy", icon: "lock.shield.fill", color: AppTheme.textMuted) {
-                        if let url = URL(string:"https://www.notion.so/StreakMed-Privacy-Policy-323dc81e319480a5b5aae7e30543a7f2") {
+                        if let url = URL(string: "https://zhuff99.github.io/StreakMed/privacy/") {
                             UIApplication.shared.open(url)
                         }
                     }

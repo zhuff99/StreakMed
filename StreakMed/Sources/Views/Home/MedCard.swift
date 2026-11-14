@@ -3,7 +3,8 @@ import SwiftUI
 struct MedCard: View {
     let med: Medication
     let doseIndex: Int              // which dose this card represents
-    @Binding var justTakenID: UUID?
+    @Binding var justTakenID: String?   // DoseItem id — per dose, so a 2x/day med doesn't animate both cards
+    var minuteTick: Date = Date()   // changes every minute so isOverdue is re-evaluated
     let onTake: (() -> Void)?       // nil = already taken / read-only
 
     @EnvironmentObject var store: MedicationStore
@@ -11,13 +12,14 @@ struct MedCard: View {
     @State private var showNotesPopover = false
 
     private var isTaken:  Bool   { store.isTaken(med, doseIndex: doseIndex) }
-    private var isTaking: Bool   { justTakenID == med.id }   // true for ~0.5 s while the take animation plays
+    private var isTaking: Bool   { justTakenID == DoseItem(medication: med, doseIndex: doseIndex).id }   // ~0.5 s take animation
     private var medColor: Color  { Color(hex: med.color ?? "4FFFB0") }
 
     /// Scheduled time-of-day has passed and the dose isn't logged. Compared by
     /// clock components so it stays correct under the dev-tools date override
     /// (doseTimesArray is anchored to the real calendar day).
     private var isOverdue: Bool {
+        _ = minuteTick
         guard !isTaken else { return false }
         let times = med.doseTimesArray
         guard let doseTime = doseIndex < times.count ? times[doseIndex] : med.scheduledTime else { return false }
