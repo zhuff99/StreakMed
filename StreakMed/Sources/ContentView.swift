@@ -217,11 +217,7 @@ struct ContentView: View {
     }
 
     private func rescheduleNotifications() {
-        NotificationManager.shared.rescheduleAll(medications: store.medications)
-        // rescheduleAll blindly sets up repeating daily triggers for every dose.
-        // Re-apply the "tomorrow only" suppression for any doses already taken today
-        // so the user doesn't get a notification for a dose they've already logged.
-        store.medications.forEach { store.requietTakenDoses(of: $0) }
+        store.rescheduleAllNotifications()
     }
 }
 

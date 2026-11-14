@@ -353,6 +353,14 @@ final class MedicationStore: ObservableObject {
         updateWidgetSnapshot()
     }
 
+    /// Rebuilds every reminder (settings change, daily refresh, permission
+    /// granted) without re-arming doses already logged today. Always use this
+    /// instead of NotificationManager.rescheduleAll directly.
+    func rescheduleAllNotifications() {
+        NotificationManager.shared.rescheduleAll(medications: medications)
+        medications.forEach { requietTakenDoses(of: $0) }
+    }
+
     /// scheduleNotification re-arms every dose; doses already logged today
     /// (or a skipped today) shouldn't fire again later today.
     func requietTakenDoses(of med: Medication, except skipIndex: Int? = nil) {

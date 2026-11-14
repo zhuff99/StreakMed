@@ -119,14 +119,14 @@ struct SettingsView: View {
                                     NotificationManager.shared.requestPermission { granted in
                                         notificationsEnabled = granted
                                         if granted {
-                                            NotificationManager.shared.rescheduleAll(medications: store.medications)
+                                            store.rescheduleAllNotifications()
                                         }
                                         NotificationManager.shared.checkPermissionStatus { notifStatus = $0 }
                                     }
                                 } else {
                                     notificationsEnabled = newVal
                                     if newVal {
-                                        NotificationManager.shared.rescheduleAll(medications: store.medications)
+                                        store.rescheduleAllNotifications()
                                     } else {
                                         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
                                     }
@@ -180,7 +180,7 @@ struct SettingsView: View {
                                 ForEach(leadOptions, id: \.value) { opt in
                                     Button {
                                         reminderLeadMinutes = opt.value
-                                        NotificationManager.shared.rescheduleAll(medications: store.medications)
+                                        store.rescheduleAllNotifications()
                                     } label: {
                                         HStack {
                                             Text(opt.label)
@@ -217,9 +217,7 @@ struct SettingsView: View {
                             get: { missedDoseReminderEnabled },
                             set: { newVal in
                                 missedDoseReminderEnabled = newVal
-                                NotificationManager.shared.rescheduleAll(
-                                    medications: store.medications
-                                )
+                                store.rescheduleAllNotifications()
                             }
                         )
                     )
@@ -240,9 +238,7 @@ struct SettingsView: View {
                                 ForEach(followUpOptions, id: \.value) { opt in
                                     Button {
                                         missedDoseFollowUpHours = opt.value
-                                        NotificationManager.shared.rescheduleAll(
-                                            medications: store.medications
-                                        )
+                                        store.rescheduleAllNotifications()
                                     } label: {
                                         HStack {
                                             Text(opt.label)

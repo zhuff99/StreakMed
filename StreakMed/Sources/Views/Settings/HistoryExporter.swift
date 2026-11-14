@@ -65,7 +65,7 @@ struct HistoryExporter {
                 let name = log.medication?.name ?? "Unknown"
                 let dose = log.medication?.doseLabel ?? "—"
                 let time = log.takenAt.map { timeFmt.string(from: $0) } ?? "—"
-                tableRows += "<tr><td class=\"name\">\(name)</td><td class=\"dose\">\(dose)</td><td class=\"time\">\(time)</td></tr>"
+                tableRows += "<tr><td class=\"name\">\(html(name))</td><td class=\"dose\">\(html(dose))</td><td class=\"time\">\(time)</td></tr>"
             }
         }
 
@@ -115,7 +115,7 @@ struct HistoryExporter {
         for m in report.meds.sorted(by: { $0.percent > $1.percent }) {
             let cls = m.percent >= 90 ? "good" : (m.percent >= 70 ? "ok" : "low")
             rows += """
-            <tr><td class="name">\(m.name)</td><td class="dose">\(m.dose)</td>
+            <tr><td class="name">\(html(m.name))</td><td class="dose">\(html(m.dose))</td>
             <td class="num">\(m.taken) / \(m.scheduled)</td>
             <td class="num \(cls)">\(m.scheduled > 0 ? "\(m.percent)%" : "—")</td></tr>
             """
@@ -181,6 +181,14 @@ struct HistoryExporter {
             NSSortDescriptor(key: "takenAt",       ascending: true)
         ]
         return (try? context.fetch(req)) ?? []
+    }
+
+    /// User-typed names go into HTML: "B&C" or "<" would break the PDF.
+    private static func html(_ s: String) -> String {
+        s.replacingOccurrences(of: "&", with: "&amp;")
+         .replacingOccurrences(of: "<", with: "&lt;")
+         .replacingOccurrences(of: ">", with: "&gt;")
+         .replacingOccurrences(of: "\"", with: "&quot;")
     }
 
     /// Wraps a field in quotes and escapes any internal quotes.
