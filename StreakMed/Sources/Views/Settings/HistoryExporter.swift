@@ -222,10 +222,13 @@ struct HistoryExporter {
     private static func writeTempFile(name: String, data: Data) -> URL? {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         do {
-            try data.write(to: url, options: .atomic)
+            // Full med history: keep it encrypted whenever the phone is locked
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
             return url
         } catch {
+            #if DEBUG
             print("[StreakMed] Export write error: \(error)")
+            #endif
             return nil
         }
     }

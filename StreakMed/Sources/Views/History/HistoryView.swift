@@ -407,16 +407,17 @@ struct MonthCalendarView: View {
 
                         // Day cells (tappable)
                         ForEach(daysInMonth, id: \.self) { date in
+                            let status = store.dayStatus(for: date)
                             Button {
                                 detailDay = IdentifiableDate(date: date)
                             } label: {
                                 CalendarDayCell(
                                     date:   date,
-                                    status: store.dayStatus(for: date)
+                                    status: status
                                 )
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("\(date.formatted(.dateTime.month(.wide).day())), \(store.dayStatus(for: date).spokenLabel)")
+                            .accessibilityLabel("\(date.formatted(.dateTime.month(.wide).day())), \(status.spokenLabel)")
                         }
                     }
 

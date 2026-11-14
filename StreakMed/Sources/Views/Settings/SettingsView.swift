@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var showPermissionAlert = false  // shown when toggling on but permission is denied
     @State private var showNoPasscodeAlert = false  // Face ID lock needs a device passcode
     @State private var showMailCopied      = false  // no Mail app: address copied instead
+    @State private var showExportFailed    = false  // export couldn't be written
     @State private var showExportPicker    = false  // confirmation dialog: CSV vs PDF
     @State private var isExporting        = false  // prevents double-taps while generating
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
@@ -403,6 +404,11 @@ struct SettingsView: View {
         } message: {
             Text("The lock uses your iPhone's Face ID or passcode. Turn on a passcode in iPhone Settings → Face ID & Passcode, then try again.")
         }
+        .alert("Export Failed", isPresented: $showExportFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("StreakMed couldn't create the file. Make sure your iPhone has some free storage, then try again.")
+        }
         .alert("Email Copied", isPresented: $showMailCopied) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -451,15 +457,15 @@ struct SettingsView: View {
             // thread is a CoreData threading violation (random crashes).
             let url = HistoryExporter.makeCSV(context: context)
             isExporting = false
-            if let url { shareFile(url) }
+            if let url { shareFile(url) } else { showExportFailed = true }
         case "report":
             let url = HistoryExporter.makeAdherenceReport(store.adherenceReport(days: 30))
             isExporting = false
-            if let url { shareFile(url) }
+            if let url { shareFile(url) } else { showExportFailed = true }
         default:
             let url = HistoryExporter.makePDF(context: context)
             isExporting = false
-            if let url { shareFile(url) }
+            if let url { shareFile(url) } else { showExportFailed = true }
         }
     }
 
