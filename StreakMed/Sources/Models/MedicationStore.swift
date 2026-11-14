@@ -567,8 +567,12 @@ final class MedicationStore: ObservableObject {
         updateBestStreak()
         updateWidgetSnapshot()
 
-        // Cancel this dose's notification for today and reschedule for tomorrow
-        NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: doseIndex)
+        // Quiet this dose's reminders for the rest of today — but only if the
+        // log IS for today. A widget tap replayed a day late would otherwise
+        // silence today's reminder for a dose that's still due.
+        if Calendar.current.isDate(now, inSameDayAs: DebugDateManager.shared.currentDate) {
+            NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: doseIndex)
+        }
     }
 
     /// Marks every pending dose for today as taken in one batch (called by "Mark All Taken").

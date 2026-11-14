@@ -323,7 +323,11 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         switch response.actionIdentifier {
         case "MARK_TAKEN":
             // Broadcast the notification identifier so the correct medication can be looked up
-            pendingMarkTakenID = response.notification.request.identifier
+            // A stale banner from a previous day would log *today's* dose;
+            // just open the app instead.
+            if Calendar.current.isDateInToday(response.notification.date) {
+                pendingMarkTakenID = response.notification.request.identifier
+            }
             NotificationCenter.default.post(
                 name: .didReceiveMarkTakenAction,
                 object: response.notification.request.identifier
