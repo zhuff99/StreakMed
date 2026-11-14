@@ -7,6 +7,7 @@ struct BadgeUnlockOverlay: View {
     let milestone: Int
     let onDismiss: () -> Void
 
+    @State private var didDismiss = false
     @State private var showContent  = false
     @State private var showBadge    = false
     @State private var showConfetti = false
@@ -138,6 +139,10 @@ struct BadgeUnlockOverlay: View {
     }
 
     private func dismiss() {
+        // Tap and the 5 s auto-dismiss can both fire; only close once
+        // (a double onDismiss also asked for an App Store review twice).
+        guard !didDismiss else { return }
+        didDismiss = true
         withAnimation(.easeIn(duration: 0.25)) {
             showContent = false
             showBadge = false

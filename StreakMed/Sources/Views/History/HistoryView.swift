@@ -74,17 +74,19 @@ struct HistoryView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 14)
 
-                if store.medications.isEmpty {
-                    Text("No medications tracked yet.")
+                if store.scheduledTodayDoseItems.isEmpty {
+                    Text(store.medications.isEmpty ? "No medications tracked yet." : "Nothing scheduled today.")
                         .font(.system(size: 14))
                         .foregroundColor(AppTheme.textDim)
                         .padding(.horizontal, 24)
                 } else {
                     VStack(spacing: 0) {
-                        ForEach(Array(store.medications.enumerated()), id: \.element.objectID) { i, med in
-                            TodayLogRow(med: med)
+                        // One row per dose actually scheduled today
+                        let items = store.scheduledTodayDoseItems
+                        ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
+                            TodayLogRow(med: item.medication, doseIndex: item.doseIndex)
                                 .padding(.horizontal, 24)
-                            if i < store.medications.count - 1 {
+                            if i < items.count - 1 {
                                 Divider()
                                     .background(AppTheme.border)
                                     .padding(.horizontal, 24)
@@ -529,32 +531,43 @@ private struct CalendarLegendItem: View {
 
 struct TodayLogRow: View {
     let med: Medication
+    let doseIndex: Int
     @EnvironmentObject var store: MedicationStore
     @ObservedObject private var debug = DebugDateManager.shared
+
+    private var taken: Bool { store.isTaken(med, doseIndex: doseIndex) }
 
     var body: some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(store.isTakenToday(med) ? AppTheme.accent : AppTheme.textDim)
+                .fill(taken ? AppTheme.accent : AppTheme.textDim)
                 .frame(width: 8, height: 8)
 
-            Text("\(med.name ?? "") \(med.doseLabel)")
+            Text(label)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(store.isTakenToday(med) ? AppTheme.text : AppTheme.textMuted)
+                .foregroundColor(taken ? AppTheme.text : AppTheme.textMuted)
+                .lineLimit(1)
 
             Spacer()
 
             Text(timeText)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(store.isTakenToday(med) ? AppTheme.accentText : AppTheme.textDim)
+                .foregroundColor(taken ? AppTheme.accentText : AppTheme.textDim)
         }
         .padding(.vertical, 12)
     }
 
+    // Multi-dose meds get one row per dose
+    private var label: String {
+        let base = "\(med.name ?? "") \(med.doseLabel)"
+        return med.doseSlots > 1 ? "\(base) · Dose \(doseIndex + 1)" : base
+    }
+
     private var timeText: String {
         let f = DateFormatter(); f.timeStyle = .short
-        if let t = store.takenTimeToday(med) { return f.string(from: t) }
-        return med.scheduledTime.map { f.string(from: $0) } ?? "—"
+        if let t = store.takenTime(med, doseIndex: doseIndex) { return f.string(from: t) }
+        let times = med.doseTimesArray
+        return doseIndex < times.count ? f.string(from: times[doseIndex]) : "—"
     }
 }
 
