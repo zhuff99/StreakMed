@@ -331,11 +331,6 @@ struct SettingsView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
 
-                // ── Scanning ──────────────────────────────────────────────
-                ScanningSettingsCard()
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
-
                 // ── About ─────────────────────────────────────────────────
                 SettingsCard(title: "About") {
                     SettingsLinkRow(label: "Rate StreakMed", icon: "star.fill", color: AppTheme.partial) {
@@ -582,80 +577,6 @@ struct SettingsToggleRow: View {
                 .toggleStyle(StreakToggle())
         }
         .padding(.vertical, 8)
-    }
-}
-
-// MARK: - Scanning Settings
-
-/// Card that lets the user enter their Claude API key for prescription scanning.
-/// The key lives in the Keychain (via APIKeyStore) — never UserDefaults.
-/// isRevealed toggles between SecureField (hidden) and TextField (visible).
-struct ScanningSettingsCard: View {
-    @State private var apiKey: String = APIKeyStore.load()
-    @State private var isRevealed = false
-
-    var body: some View {
-        SettingsCard(title: "Prescription Scanning") {
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Enter your own Claude API key to enable AI-powered prescription label scanning. Scans are billed to your Anthropic account (usually a fraction of a cent each).")
-                        .font(.system(size: 13))
-                        .foregroundColor(AppTheme.textMuted)
-                    Button {
-                        if let url = URL(string: "https://console.anthropic.com/settings/keys") {
-                            UIApplication.shared.open(url)
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("Get an API key →")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(AppTheme.accent)
-                        }
-                    }
-                }
-
-                HStack(spacing: 10) {
-                    Group {
-                        if isRevealed {
-                            TextField("sk-ant-...", text: $apiKey)
-                        } else {
-                            SecureField("sk-ant-...", text: $apiKey)
-                        }
-                    }
-                    .font(.system(size: 14))
-                    .foregroundColor(AppTheme.text)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-
-                    Button {
-                        isRevealed.toggle()
-                    } label: {
-                        Image(systemName: isRevealed ? "eye.slash" : "eye")
-                            .font(.system(size: 14))
-                            .foregroundColor(AppTheme.textMuted)
-                    }
-                }
-                .padding(12)
-                .background(AppTheme.surfaceAlt)
-                .cornerRadius(10)
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.border, lineWidth: 1))
-                .onChange(of: apiKey) { newValue in
-                    APIKeyStore.save(newValue)
-                }
-
-                if !apiKey.trimmingCharacters(in: .whitespaces).isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(AppTheme.accent)
-                        Text("API key saved")
-                            .font(.system(size: 12))
-                            .foregroundColor(AppTheme.accent)
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-        }
     }
 }
 

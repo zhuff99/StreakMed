@@ -82,7 +82,6 @@ struct AddMedSheet: View {
     @State private var selectedDays:    Set<Int> = Set(1...7)
     @State private var editingDoseIndex: Int?    = nil
     @State private var tempDoseTime:     Date    = Date()
-    @State private var showScanner:      Bool    = false
     @State private var selectedShape:    PillShape = .capsule
     @State private var shapeTouched:     Bool      = false   // user picked a form; autocomplete stops guessing
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -673,24 +672,6 @@ struct AddMedSheet: View {
                     Button("Cancel") { dismiss() }
                         .foregroundColor(AppTheme.textMuted)
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showScanner = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: 13, weight: .semibold))
-                            Text("Scan")
-                                .font(.system(size: 14, weight: .semibold))
-                        }
-                        .foregroundColor(AppTheme.accent)
-                    }
-                }
-            }
-            .sheet(isPresented: $showScanner) {
-                PrescriptionScannerSheet { info in
-                    applyScannedResult(info)
-                }
             }
         }
     }
@@ -699,31 +680,6 @@ struct AddMedSheet: View {
 
     private func shortTime(_ date: Date) -> String {
         let f = DateFormatter(); f.timeStyle = .short; return f.string(from: date)
-    }
-
-    /// Fills the form with the structured data returned by the prescription scanner.
-    /// Only overwrites fields that the scanner actually found — existing user input is preserved
-    /// for anything the scanner didn't return. Dose times are spaced evenly across the day
-    /// starting from the scanner's suggested hour (e.g. 3 doses per day → 8 AM, 16 PM, 0 AM).
-    private func applyScannedResult(_ info: ScannedMedInfo) {
-        if !info.name.isEmpty        { name = info.name }
-        if !info.doseAmount.isEmpty  { doseAmount = info.doseAmount }
-        if doseUnits.contains(info.doseUnit) { doseUnit = info.doseUnit }
-        if typeOptions.contains(info.type)   { type = info.type }
-        if let pills = info.pillCount        { pillsOnHand = "\(pills)" }
-        if !info.notes.isEmpty { notes = String(info.notes.prefix(notesLimit)) }
-
-        // Space dose times evenly through the day (e.g. 3 doses → every 8 hours)
-        // Spread doses across a 12-hour waking window (2 → 8 AM / 8 PM,
-        // 3 → 8/2/8, 4 → 8/12/4/8) instead of round the clock, which put
-        // the last dose at midnight.
-        let cal   = Calendar.current
-        let count = min(max(info.dosesPerDay, 1), maxDoses)
-        let gap   = count > 1 ? 12 / (count - 1) : 0
-        scheduledTimes = (0..<count).compactMap { i in
-            let hour = (info.scheduledHour + i * gap) % 24
-            return cal.date(from: DateComponents(hour: hour, minute: 0))
-        }
     }
 
     // MARK: - Quick select button

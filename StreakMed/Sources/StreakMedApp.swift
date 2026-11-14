@@ -21,6 +21,7 @@ struct StreakMedApp: App {
             "snoozeEnabled":             true,   // the Snooze button always showed before 1.2.1
         ])
         NotificationManager.shared.registerCategories()
+        APIKeyStore.purgeRemovedScannerData()
         #if DEBUG
         // `-dumpNotifs`: print every pending reminder + trigger a few seconds
         // after launch (headless check of the schedule from the simulator).
