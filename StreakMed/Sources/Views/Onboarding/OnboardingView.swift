@@ -199,10 +199,18 @@ struct OnboardingNotifications: View {
 
             VStack(spacing: 14) {
                 OnboardingCTA(label: "Enable Notifications", style: .primary) {
-                    NotificationManager.shared.requestPermission { _ in onNext() }
+                    NotificationManager.shared.requestPermission { granted in
+                        // Keep the in-app toggle honest about what iOS allows.
+                        UserDefaults.standard.set(granted, forKey: "notificationsEnabled")
+                        onNext()
+                    }
                 }
 
-                Button(action: onNext) {
+                Button {
+                    // Off until they turn it on in Settings (which asks iOS then).
+                    UserDefaults.standard.set(false, forKey: "notificationsEnabled")
+                    onNext()
+                } label: {
                     Text("Not now")
                         .font(.system(size: isPad ? 17 : 15, weight: .medium))
                         .foregroundColor(AppTheme.textMuted)

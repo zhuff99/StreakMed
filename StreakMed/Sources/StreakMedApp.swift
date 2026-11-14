@@ -10,6 +10,14 @@ struct StreakMedApp: App {
     @AppStorage("appTheme")               var appTheme               = "dark"
 
     init() {
+        // Match the @AppStorage defaults in SettingsView so raw UserDefaults reads
+        // (NotificationManager) agree with what Settings shows. Without this, the
+        // missed-dose follow-up showed ON but was never scheduled until toggled.
+        UserDefaults.standard.register(defaults: [
+            "notificationsEnabled":      true,
+            "missedDoseReminderEnabled": true,
+            "missedDoseFollowUpHours":   2,
+        ])
         NotificationManager.shared.registerCategories()
         configureAppearance()
     }

@@ -112,6 +112,15 @@ struct SettingsView: View {
                             set: { newVal in
                                 if newVal && notifStatus == .denied {
                                     showPermissionAlert = true
+                                } else if newVal && notifStatus == .notDetermined {
+                                    // First time: let iOS ask, then follow its answer.
+                                    NotificationManager.shared.requestPermission { granted in
+                                        notificationsEnabled = granted
+                                        if granted {
+                                            NotificationManager.shared.rescheduleAll(medications: store.medications)
+                                        }
+                                        NotificationManager.shared.checkPermissionStatus { notifStatus = $0 }
+                                    }
                                 } else {
                                     notificationsEnabled = newVal
                                     if newVal {
@@ -123,6 +132,35 @@ struct SettingsView: View {
                             }
                         )
                     )
+
+                    if notificationsEnabled && notifStatus == .denied {
+                        Divider().background(AppTheme.border)
+                        Button {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(AppTheme.warn)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Blocked in iPhone Settings")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(AppTheme.text)
+                                    Text("Reminders won't arrive until you allow them. Tap to open Settings.")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(AppTheme.textDim)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(AppTheme.textDim)
+                            }
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.plain)
+                    }
 
                     if notificationsEnabled {
                         Divider().background(AppTheme.border)
@@ -337,6 +375,10 @@ struct SettingsView: View {
             NotificationManager.shared.checkPermissionStatus { status in
                 notifStatus = status
             }
+        }
+        // Coming back from iPhone Settings (or the first-launch prompt) → re-check.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            NotificationManager.shared.checkPermissionStatus { notifStatus = $0 }
         }
         .confirmationDialog("Export History", isPresented: $showExportPicker, titleVisibility: .visible) {
             Button("Export as CSV") { exportHistory(format: "csv") }

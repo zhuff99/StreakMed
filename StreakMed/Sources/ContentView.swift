@@ -190,21 +190,28 @@ struct ContentView: View {
         let lastKey      = "lastNotifRescheduleDate"
         let lastSchedule = UserDefaults.standard.object(forKey: lastKey) as? Date ?? .distantPast
         if !cal.isDate(lastSchedule, inSameDayAs: today) {
-            NotificationManager.shared.rescheduleAll(medications: store.medications)
-            // rescheduleAll blindly sets up repeating daily triggers for every dose.
-            // Re-apply the "tomorrow only" suppression for any doses already taken today
-            // so the user doesn't get a notification for a dose they've already logged.
-            for med in store.medications {
-                let doseCount = med.doseTimesArray.isEmpty ? 1 : med.doseTimesArray.count
-                for i in 0..<doseCount {
-                    if store.isTaken(med, doseIndex: i) {
-                        NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: i)
-                    }
-                }
-            }
+            rescheduleNotifications()
             UserDefaults.standard.set(today, forKey: lastKey)
         }
         lastKnownDay = today
+
+        // Reminders on but iOS never asked (e.g. "Not now" in onboarding) → ask once.
+        NotificationManager.shared.requestIfNeeded { granted in
+            if granted { rescheduleNotifications() }
+        }
+    }
+
+    private func rescheduleNotifications() {
+        NotificationManager.shared.rescheduleAll(medications: store.medications)
+        // rescheduleAll blindly sets up repeating daily triggers for every dose.
+        // Re-apply the "tomorrow only" suppression for any doses already taken today
+        // so the user doesn't get a notification for a dose they've already logged.
+        for med in store.medications {
+            let doseCount = med.doseTimesArray.isEmpty ? 1 : med.doseTimesArray.count
+            for i in 0..<doseCount where store.isTaken(med, doseIndex: i) {
+                NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: i)
+            }
+        }
     }
 }
 

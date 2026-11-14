@@ -19,6 +19,27 @@ final class NotificationManager: NSObject {
         }
     }
 
+    /// Asks iOS for permission if it has never been asked and the in-app Reminders
+    /// toggle is on. Before 1.2.1 the only prompt lived in onboarding, so anyone who
+    /// tapped "Not now" there had Reminders showing ON in Settings while iOS had never
+    /// been asked — nothing was delivered and StreakMed didn't appear in iOS Settings.
+    /// `completion(true)` only when permission was just granted (caller reschedules).
+    func requestIfNeeded(completion: @escaping (Bool) -> Void) {
+        guard Self.remindersEnabled else { completion(false); return }
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+            self.requestPermission(completion: completion)
+        }
+    }
+
+    /// The in-app "Reminders" toggle. Default (true) is registered in StreakMedApp.init.
+    static var remindersEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "notificationsEnabled")
+    }
+
     var permissionStatus: UNAuthorizationStatus = .notDetermined
 
     func checkPermissionStatus(completion: @escaping (UNAuthorizationStatus) -> Void) {
@@ -35,6 +56,7 @@ final class NotificationManager: NSObject {
     /// Schedules one daily repeating notification per dose time for the given medication,
     /// plus an optional missed-dose follow-up if the user hasn't logged the dose after X hours.
     func scheduleNotification(for med: Medication) {
+        guard Self.remindersEnabled else { return }
         guard let name = med.name, let baseID = med.notificationID else { return }
 
         let leadMinutes = UserDefaults.standard.integer(forKey: "reminderLeadMinutes")
@@ -139,6 +161,8 @@ final class NotificationManager: NSObject {
             followUpNotifID(baseID: baseID, doseIndex: doseIndex)
         ])
 
+        guard Self.remindersEnabled else { return }
+
         let times = med.doseTimesArray.isEmpty
             ? (med.scheduledTime.map { [$0] } ?? [])
             : med.doseTimesArray
@@ -209,7 +233,7 @@ final class NotificationManager: NSObject {
 
     /// Fires a one-time refill reminder when the supply on hand drops to or below 7.
     func scheduleRefillNotification(for med: Medication, remaining: Int) {
-        guard let name = med.name else { return }
+        guard Self.remindersEnabled, let name = med.name else { return }
 
         let content       = UNMutableNotificationContent()
         content.title     = "Low Supply: \(name)"
