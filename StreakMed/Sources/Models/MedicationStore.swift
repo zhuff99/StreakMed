@@ -110,6 +110,17 @@ extension Medication {
         return scheduledWeekdays.contains(weekday)
     }
 
+    /// Dose slots per scheduled day (legacy meds with no times still count as one).
+    var doseSlots: Int { max(1, doseTimesArray.count) }
+
+    /// False for days before the med was added. A med added today must not
+    /// count against past days — before 1.2.1 adding a med wiped the streak.
+    func existed(on day: Date) -> Bool {
+        guard let created = createdAt else { return true }
+        let cal = Calendar.current
+        return cal.startOfDay(for: created) <= cal.startOfDay(for: day)
+    }
+
     /// All scheduled dose times as Date objects (time components only, anchored to today).
     /// Falls back to `scheduledTime` for legacy single-dose medications.
     var doseTimesArray: [Date] {
@@ -230,6 +241,28 @@ final class MedicationStore: ObservableObject {
             ]
         }
         defaults.set(try? JSONSerialization.data(withJSONObject: pending), forKey: "widget_pending")
+
+        // Tomorrow's plan, so the widget can roll over at midnight on its own
+        // instead of showing yesterday's "all done" until the app is opened.
+        let cal      = Calendar.current
+        let today    = cal.startOfDay(for: DebugDateManager.shared.currentDate)
+        let tomorrow = cal.date(byAdding: .day, value: 1, to: today)!
+        let tomorrowItems: [[String: Any]] = medications
+            .filter { $0.isScheduled(on: tomorrow) }
+            .flatMap { med in med.doseTimesArray.enumerated().compactMap { i, t -> [String: Any]? in
+                guard let id = med.id?.uuidString else { return nil }
+                let comps = cal.dateComponents([.hour, .minute], from: t)
+                let at = cal.date(bySettingHour: comps.hour ?? 0, minute: comps.minute ?? 0, second: 0, of: tomorrow) ?? tomorrow
+                return ["id": id, "idx": i, "name": med.name ?? "", "time": at.timeIntervalSince1970]
+            } }
+            .sorted { ($0["time"] as? Double ?? 0) < ($1["time"] as? Double ?? 0) }
+        // Streak after midnight: unchanged if today is done (or a shield/rest day
+        // covers it), otherwise it resets.
+        let todayCovered = scheduledTodayCount == 0 || takenTodayCount >= scheduledTodayCount
+            || isSkipped(today) || streakShields > 0
+        defaults.set(today.timeIntervalSince1970, forKey: "widget_day")
+        defaults.set(try? JSONSerialization.data(withJSONObject: tomorrowItems), forKey: "widget_tomorrow_pending")
+        defaults.set(todayCovered ? currentStreak : 0, forKey: "widget_tomorrow_streak")
 
         WidgetCenter.shared.reloadAllTimelines()
     }
@@ -499,8 +532,12 @@ final class MedicationStore: ObservableObject {
         updateBestStreak()
         updateWidgetSnapshot()
 
-        // Re-schedule the notification for this dose
+        // Re-arm this med's reminders, then re-quiet any of its other doses
+        // already taken today (scheduleNotification resets every dose slot).
         NotificationManager.shared.scheduleNotification(for: med)
+        for i in 0..<med.doseSlots where i != doseIndex && isTaken(med, doseIndex: i) {
+            NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: i)
+        }
     }
 
     // MARK: - Streak
@@ -539,15 +576,7 @@ final class MedicationStore: ObservableObject {
 
         // One fetch for the whole window, bucketed by day — the forward walk
         // visits every day of the year, so per-day count queries would be slow.
-        let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
-        req.predicate = NSPredicate(
-            format: "scheduledDate >= %@ AND status == 'taken'", cutoff as NSDate
-        )
-        var takenByDay: [Date: Int] = [:]
-        for log in (try? viewContext.fetch(req)) ?? [] {
-            guard let day = log.scheduledDate.map({ cal.startOfDay(for: $0) }) else { continue }
-            takenByDay[day, default: 0] += 1
-        }
+        let takenByDay = takenDoses(from: cutoff, to: cal.date(byAdding: .day, value: 1, to: today)!)
 
         var streak     = 0
         var perfectRun = 0   // consecutive perfect days since the last shield was earned
@@ -556,7 +585,7 @@ final class MedicationStore: ObservableObject {
 
         while day <= today {
             let next = cal.date(byAdding: .day, value: 1, to: day)!
-            let scheduledForDay = medications.filter { $0.isScheduled(on: day) }
+            let scheduledForDay = scheduledMeds(on: day)
 
             // Rest days and intentionally-skipped days neither break nor count
             if scheduledForDay.isEmpty || isSkipped(day) {
@@ -564,8 +593,9 @@ final class MedicationStore: ObservableObject {
                 continue
             }
 
-            let totalDoses = scheduledForDay.reduce(0) { $0 + max(1, $1.doseTimesArray.count) }
-            let complete   = takenByDay[day, default: 0] >= totalDoses
+            let complete = scheduledForDay.allSatisfy {
+                (takenByDay[day]?[$0.objectID]?.count ?? 0) >= $0.doseSlots
+            }
 
             if complete {
                 streak     += 1
@@ -589,6 +619,37 @@ final class MedicationStore: ObservableObject {
         }
 
         return StreakResult(streak: streak, shields: shields)
+    }
+
+    /// Active meds that count on `day`: scheduled that weekday and already added.
+    func scheduledMeds(on day: Date) -> [Medication] {
+        medications.filter { $0.isScheduled(on: day) && $0.existed(on: day) }
+    }
+
+    /// Distinct taken dose indexes per day per med, in one fetch. Counting
+    /// per med (not per day) keeps deleted meds' logs from filling in for an
+    /// active med's missed dose.
+    private func takenDoses(from start: Date, to end: Date) -> [Date: [NSManagedObjectID: Set<Int16>]] {
+        let cal = Calendar.current
+        let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
+        req.predicate = NSPredicate(
+            format: "scheduledDate >= %@ AND scheduledDate < %@ AND status == 'taken'",
+            start as NSDate, end as NSDate
+        )
+        var result: [Date: [NSManagedObjectID: Set<Int16>]] = [:]
+        for log in (try? viewContext.fetch(req)) ?? [] {
+            guard let d = log.scheduledDate, let med = log.medication else { continue }
+            result[cal.startOfDay(for: d), default: [:]][med.objectID, default: []].insert(log.doseIndex)
+        }
+        return result
+    }
+
+    /// Doses of `med` taken on `date` (distinct dose slots, capped at the schedule).
+    func takenCount(_ med: Medication, on date: Date) -> Int {
+        let cal   = Calendar.current
+        let start = cal.startOfDay(for: date)
+        let sets  = takenDoses(from: start, to: cal.date(byAdding: .day, value: 1, to: start)!)
+        return min(med.doseSlots, sets[start]?[med.objectID]?.count ?? 0)
     }
 
     // MARK: - Log lookup
@@ -628,19 +689,15 @@ final class MedicationStore: ObservableObject {
         // Intentionally skipped day — neutral, doesn't break streak
         if isSkipped(date) { return .skipped }
 
-        // Meds scheduled for this specific weekday
-        let scheduledForDay = medications.filter { $0.isScheduled(on: date) }
+        // Meds scheduled for this weekday that existed by then
+        let scheduledForDay = scheduledMeds(on: date)
         // Rest day — show as neutral (future styling)
         if scheduledForDay.isEmpty { return .future }
 
         let endDay = cal.date(byAdding: .day, value: 1, to: startDay)!
-        let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
-        req.predicate = NSPredicate(
-            format: "scheduledDate >= %@ AND scheduledDate < %@ AND status == 'taken'",
-            startDay as NSDate, endDay as NSDate
-        )
-        let taken = (try? viewContext.count(for: req)) ?? 0
-        let total = scheduledForDay.reduce(0) { $0 + max(1, $1.doseTimesArray.count) }
+        let sets   = takenDoses(from: startDay, to: endDay)[startDay] ?? [:]
+        let taken  = scheduledForDay.reduce(0) { $0 + min($1.doseSlots, sets[$1.objectID]?.count ?? 0) }
+        let total  = scheduledForDay.reduce(0) { $0 + $1.doseSlots }
         if taken == 0     { return .missed  }
         if taken >= total { return .perfect }
         return .partial
@@ -660,22 +717,17 @@ final class MedicationStore: ObservableObject {
 
         var totalScheduled = 0
         var totalTaken     = 0
+        let taken = takenDoses(from: monthStart, to: cal.startOfDay(for: now))
 
         for offset in 0..<daysPassed {
             let day = cal.date(byAdding: .day, value: offset, to: monthStart)!
-            let scheduledForDay = medications.filter { $0.isScheduled(on: day) }
-            guard !scheduledForDay.isEmpty else { continue }
-            // Count dose slots, not meds — taken logs are per dose, so a twice-daily
-            // med counted as 1 would push the rate past 100%.
-            totalScheduled += scheduledForDay.reduce(0) { $0 + max(1, $1.doseTimesArray.count) }
-
-            let nextDay = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: day))!
-            let req: NSFetchRequest<DoseLog> = DoseLog.fetchRequest()
-            req.predicate = NSPredicate(
-                format: "scheduledDate >= %@ AND scheduledDate < %@ AND status == 'taken'",
-                cal.startOfDay(for: day) as NSDate, nextDay as NSDate
-            )
-            totalTaken += (try? viewContext.count(for: req)) ?? 0
+            // Skipped days and days before a med was added don't count against you.
+            guard !isSkipped(day) else { continue }
+            // Count dose slots, not meds — a twice-daily med is two slots.
+            for med in scheduledMeds(on: day) {
+                totalScheduled += med.doseSlots
+                totalTaken     += min(med.doseSlots, taken[day]?[med.objectID]?.count ?? 0)
+            }
         }
 
         return totalScheduled > 0 ? min(100, Int((Double(totalTaken) / Double(totalScheduled)) * 100)) : 0
@@ -795,7 +847,7 @@ final class MedicationStore: ObservableObject {
         med.scheduledDays  = scheduledDays.sorted().map { String($0) }.joined(separator: ",")
         med.pillsRemaining = pillsRemaining.map { NSNumber(value: $0) }
         med.isActive       = true
-        med.createdAt      = Date()
+        med.createdAt      = DebugDateManager.shared.currentDate
         med.notificationID = UUID().uuidString
         med.sortOrder      = Int32(medications.count)
 

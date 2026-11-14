@@ -28,7 +28,7 @@ struct DayDetailSheet: View {
     }
 
     private var scheduledMeds: [Medication] {
-        store.medications.filter { $0.isScheduled(on: date) }
+        store.scheduledMeds(on: date)
     }
 
     private var isSkipped: Bool { store.isSkipped(date) }
@@ -145,7 +145,10 @@ private struct DayDetailMedRow: View {
     @EnvironmentObject var store: MedicationStore
 
     private var takenLog:    DoseLog? { store.logForMed(med, on: date) }
-    private var isTaken:     Bool     { takenLog != nil }
+    private var takenCount:  Int      { store.takenCount(med, on: date) }
+    private var isTaken:     Bool     { takenCount >= med.doseSlots }
+    /// Multi-dose med with some but not all doses logged.
+    private var isPartial:   Bool     { takenCount > 0 && !isTaken }
     private var isSkippedDay: Bool    { store.isSkipped(date) }
     private var medColor:    Color    { Color(hex: med.color ?? "4FFFB0") }
 
@@ -188,7 +191,11 @@ private struct DayDetailMedRow: View {
             Spacer()
 
             // Time badge
-            if let log = takenLog, let t = log.takenAt {
+            if isPartial {
+                Text("\(takenCount) of \(med.doseSlots)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(AppTheme.partial)
+            } else if isTaken, let log = takenLog, let t = log.takenAt {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Taken")
                         .font(.system(size: 11, weight: .semibold))
@@ -213,6 +220,7 @@ private struct DayDetailMedRow: View {
 
     private var statusColor: Color {
         if isTaken       { return AppTheme.accent }
+        if isPartial     { return AppTheme.partial }
         if isSkippedDay  { return Color(hex: "7B68EE") }
         if dayStart < today { return AppTheme.missed }
         if dayStart == today { return AppTheme.textMuted }
@@ -221,6 +229,7 @@ private struct DayDetailMedRow: View {
 
     private var statusSymbol: String {
         if isTaken       { return "checkmark" }
+        if isPartial     { return "minus" }
         if isSkippedDay  { return "moon.fill" }
         if dayStart < today { return "xmark" }
         return "clock"

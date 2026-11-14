@@ -134,6 +134,12 @@ struct ContentView: View {
         // Lock on first launch if the feature is enabled.
         .onAppear {
             if biometricLockEnabled { isLocked = true }
+            // Cold launch from a notification action / badge earned during init
+            handlePendingMarkTaken()
+            if let m = store.newlyUnlockedBadge {
+                unlockedMilestone = m
+                showBadgeUnlock = true
+            }
         }
         // Refresh store data when app returns from background
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
@@ -163,19 +169,8 @@ struct ContentView: View {
         // Handle "Mark as Taken" tapped directly on the notification banner.
         // NotificationManager posts this event with the notification identifier as its object;
         // we look up the matching medication + dose index and record it as taken.
-        .onReceive(NotificationCenter.default.publisher(for: .didReceiveMarkTakenAction)) { note in
-            guard let notifID = note.object as? String else { return }
-            // Notification IDs are formatted as "\(baseID)_dose_\(index)"
-            for med in store.medications {
-                guard let baseID = med.notificationID else { continue }
-                let doseCount = med.doseTimesArray.isEmpty ? 1 : med.doseTimesArray.count
-                for i in 0..<doseCount {
-                    if notifID == "\(baseID)_dose_\(i)" {
-                        store.markTaken(med, doseIndex: i)
-                        return
-                    }
-                }
-            }
+        .onReceive(NotificationCenter.default.publisher(for: .didReceiveMarkTakenAction)) { _ in
+            handlePendingMarkTaken()
         }
     }
 
@@ -183,8 +178,19 @@ struct ContentView: View {
 
     /// Refreshes store data and, once per day, converts any one-shot "tomorrow" notification
     /// triggers back into proper repeating daily reminders.
+    /// "Mark as Taken" from a reminder, follow-up or snoozed copy.
+    private func handlePendingMarkTaken() {
+        guard let id = NotificationManager.shared.pendingMarkTakenID else { return }
+        NotificationManager.shared.pendingMarkTakenID = nil
+        store.refresh()   // the app may have been asleep since yesterday
+        if let (med, i) = NotificationManager.shared.doseFor(notificationID: id, in: store.medications) {
+            store.markTaken(med, doseIndex: i)
+        }
+    }
+
     private func refreshAndReschedule() {
         store.refresh()
+        NotificationManager.shared.clearBadge()
         let cal          = Calendar.current
         let today        = cal.startOfDay(for: Date())
         let lastKey      = "lastNotifRescheduleDate"
@@ -207,8 +213,7 @@ struct ContentView: View {
         // Re-apply the "tomorrow only" suppression for any doses already taken today
         // so the user doesn't get a notification for a dose they've already logged.
         for med in store.medications {
-            let doseCount = med.doseTimesArray.isEmpty ? 1 : med.doseTimesArray.count
-            for i in 0..<doseCount where store.isTaken(med, doseIndex: i) {
+            for i in 0..<med.doseSlots where store.isTaken(med, doseIndex: i) {
                 NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: i)
             }
         }

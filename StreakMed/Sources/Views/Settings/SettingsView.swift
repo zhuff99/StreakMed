@@ -8,7 +8,7 @@ struct SettingsView: View {
 
     // All persisted with @AppStorage so they survive app restarts
     @AppStorage("notificationsEnabled")      var notificationsEnabled      = true
-    @AppStorage("snoozeEnabled")             var snoozeEnabled              = false
+    @AppStorage("snoozeEnabled")             var snoozeEnabled              = true
     @AppStorage("reminderLeadMinutes")       var reminderLeadMinutes        = 0
     @AppStorage("missedDoseReminderEnabled") var missedDoseReminderEnabled  = true
     @AppStorage("missedDoseFollowUpHours")   var missedDoseFollowUpHours    = 2
@@ -272,8 +272,11 @@ struct SettingsView: View {
                     Divider().background(AppTheme.border)
                     SettingsToggleRow(
                         label: "Snooze",
-                        sub:   "Remind again after 10 minutes",
-                        isOn: $snoozeEnabled
+                        sub:   "Show a 10-minute Snooze button on reminders",
+                        isOn: Binding(
+                            get: { snoozeEnabled },
+                            set: { snoozeEnabled = $0; NotificationManager.shared.registerCategories() }
+                        )
                     )
                 }
                 .padding(.horizontal, 24)

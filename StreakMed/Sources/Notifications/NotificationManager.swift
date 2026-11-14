@@ -42,6 +42,30 @@ final class NotificationManager: NSObject {
 
     var permissionStatus: UNAuthorizationStatus = .notDetermined
 
+    /// "Mark as Taken" tapped while the app wasn't running: the response can
+    /// arrive before ContentView is listening, so it's parked here too.
+    var pendingMarkTakenID: String?
+
+    /// Clears the red app-icon badge (every reminder sets it to 1).
+    func clearBadge() {
+        UNUserNotificationCenter.current().setBadgeCount(0)
+    }
+
+    /// Maps any reminder ID ("…_dose_1", "…_dose_1_followup", "…_dose_1_snooze")
+    /// back to its medication + dose index.
+    func doseFor(notificationID id: String, in meds: [Medication]) -> (Medication, Int)? {
+        var base = id
+        while base.hasSuffix("_snooze") { base = String(base.dropLast("_snooze".count)) }
+        if base.hasSuffix("_followup") { base = String(base.dropLast("_followup".count)) }
+        for med in meds {
+            guard let medBase = med.notificationID else { continue }
+            for i in 0..<med.doseSlots where base == doseNotifID(baseID: medBase, doseIndex: i) {
+                return (med, i)
+            }
+        }
+        return nil
+    }
+
     func checkPermissionStatus(completion: @escaping (UNAuthorizationStatus) -> Void) {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             DispatchQueue.main.async {
@@ -128,6 +152,7 @@ final class NotificationManager: NSObject {
         content.sound = .default
         content.badge = 1
         content.interruptionLevel = .timeSensitive
+        content.categoryIdentifier = "MEDICATION_REMINDER"   // Mark as Taken works here too
 
         let comps = cal.dateComponents([.hour, .minute], from: followUpTime)
         let trigger: UNCalendarNotificationTrigger
@@ -155,11 +180,12 @@ final class NotificationManager: NSObject {
         guard let name = med.name, let baseID = med.notificationID else { return }
 
         let notifID = doseNotifID(baseID: baseID, doseIndex: doseIndex)
-        // Cancel both the regular reminder and the missed-dose follow-up for today
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [
-            notifID,
-            followUpNotifID(baseID: baseID, doseIndex: doseIndex)
-        ])
+        // Cancel the reminder, follow-up and any snoozed copies for today, and
+        // clear already-delivered ones from Notification Center (dose is done).
+        let related = [notifID, followUpNotifID(baseID: baseID, doseIndex: doseIndex)]
+        let ids = related + related.map { $0 + "_snooze" } + related.map { $0 + "_snooze_snooze" }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
 
         guard Self.remindersEnabled else { return }
 
@@ -259,6 +285,7 @@ final class NotificationManager: NSObject {
     /// "Mark as Taken" opens the app and marks the dose; "Snooze 10 min" fires a one-off reminder.
     /// Must be called at app launch (before any notifications are displayed).
     func registerCategories() {
+        let snoozeOn = UserDefaults.standard.bool(forKey: "snoozeEnabled")
         let takenAction = UNNotificationAction(
             identifier: "MARK_TAKEN",
             title: "Mark as Taken",
@@ -271,7 +298,7 @@ final class NotificationManager: NSObject {
         )
         let category = UNNotificationCategory(
             identifier: "MEDICATION_REMINDER",
-            actions: [takenAction, snoozeAction],
+            actions: snoozeOn ? [takenAction, snoozeAction] : [takenAction],
             intentIdentifiers: [],
             options: []
         )
@@ -324,6 +351,7 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         switch response.actionIdentifier {
         case "MARK_TAKEN":
             // Broadcast the notification identifier so the correct medication can be looked up
+            pendingMarkTakenID = response.notification.request.identifier
             NotificationCenter.default.post(
                 name: .didReceiveMarkTakenAction,
                 object: response.notification.request.identifier

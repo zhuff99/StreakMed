@@ -56,8 +56,45 @@ struct StreakMedEntry: TimelineEntry {
 
 // MARK: - UserDefaults snapshot reader
 
+/// The app's snapshot describes the day in `widget_day`. Once that day is over,
+/// promote the "tomorrow" plan the app left behind so the widget starts the new
+/// day fresh (0 taken, today's doses pending) without waiting for the app.
+/// Only rolls a single day; more than that and nothing is reliable, so it
+/// shows an empty state until the app refreshes.
+private func rollOverIfNeeded(_ defaults: UserDefaults, at now: Date = Date()) {
+    let dayTI = defaults.double(forKey: "widget_day")
+    guard dayTI > 0 else { return }                 // pre-1.2.1 snapshot: leave as is
+    let cal      = Calendar.current
+    let snapDay  = Date(timeIntervalSince1970: dayTI)
+    let today    = cal.startOfDay(for: now)
+    guard today > snapDay else { return }
+    let tomorrow = cal.date(byAdding: .day, value: 1, to: snapDay)!
+
+    var pending: [[String: Any]] = []
+    if today == tomorrow,
+       let data = defaults.data(forKey: "widget_tomorrow_pending"),
+       let list = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] {
+        pending = list
+    }
+    defaults.set(0,             forKey: "widget_taken")
+    defaults.set(pending.count, forKey: "widget_total")
+    defaults.set(today == tomorrow ? defaults.integer(forKey: "widget_tomorrow_streak") : 0,
+                 forKey: "widget_streak")
+    defaults.set(try? JSONSerialization.data(withJSONObject: pending), forKey: "widget_pending")
+    defaults.removeObject(forKey: "widget_tomorrow_pending")
+    defaults.set(today.timeIntervalSince1970, forKey: "widget_day")
+    if let next = pending.first {
+        defaults.set(next["name"] as? String ?? "", forKey: "widget_next_name")
+        defaults.set(next["time"] as? Double ?? 0,  forKey: "widget_next_time")
+    } else {
+        defaults.removeObject(forKey: "widget_next_name")
+        defaults.removeObject(forKey: "widget_next_time")
+    }
+}
+
 private func readSnapshot() -> StreakMedEntry {
     guard let defaults = UserDefaults(suiteName: widgetGroupID) else { return .empty }
+    rollOverIfNeeded(defaults)
     let taken   = defaults.integer(forKey: "widget_taken")
     let total   = defaults.integer(forKey: "widget_total")
     let streak  = defaults.integer(forKey: "widget_streak")
@@ -115,6 +152,7 @@ struct MarkDoseTakenIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         guard !medID.isEmpty,
               let defaults = UserDefaults(suiteName: widgetGroupID) else { return .result() }
+        rollOverIfNeeded(defaults)
 
         // 1. Queue the action for the app to replay into CoreData
         var actions = (defaults.data(forKey: "widget_actions"))
@@ -187,8 +225,12 @@ struct StreakMedProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<StreakMedEntry>) -> Void) {
-        let entry      = readSnapshot()
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: Date())!
+        let entry    = readSnapshot()
+        let cal      = Calendar.current
+        let midnight = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date()))!
+        // Refresh every 30 min, and right after midnight so the new day shows up.
+        let nextUpdate = min(cal.date(byAdding: .minute, value: 30, to: Date())!,
+                             midnight.addingTimeInterval(60))
         completion(Timeline(entries: [entry], policy: .after(nextUpdate)))
     }
 }

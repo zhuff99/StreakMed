@@ -17,6 +17,7 @@ struct StreakMedApp: App {
             "notificationsEnabled":      true,
             "missedDoseReminderEnabled": true,
             "missedDoseFollowUpHours":   2,
+            "snoozeEnabled":             true,   // the Snooze button always showed before 1.2.1
         ])
         NotificationManager.shared.registerCategories()
         configureAppearance()

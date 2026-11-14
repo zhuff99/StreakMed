@@ -72,6 +72,23 @@ struct HomeView: View {
                         HomeEmptyState()
                             .padding(.top, 60)
                     }
+                    // Meds exist but none are scheduled today
+                    else if store.scheduledTodayCount == 0 {
+                        VStack(spacing: 10) {
+                            Image(systemName: "moon.zzz.fill")
+                                .font(.system(size: 30))
+                                .foregroundColor(AppTheme.textDim)
+                            Text("Rest day")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(AppTheme.textMuted)
+                            Text("Nothing scheduled today. Your streak is safe.")
+                                .font(.system(size: 14))
+                                .foregroundColor(AppTheme.textDim)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 40)
+                    }
 
                     // Spacer so content clears the floating button
                     Spacer(minLength: 80)
@@ -149,12 +166,7 @@ struct HomeView: View {
                 .foregroundColor(AppTheme.accentFG)
                 .padding(.horizontal, 28)
                 .padding(.vertical, 14)
-                .background(
-                    LinearGradient(
-                        colors: [AppTheme.accent, Color(hex: "2BDEAA")],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                )
+                .background(AppTheme.accent)   // was a gradient into hardcoded mint — wrong on Ink/Forest/Graphite
                 .clipShape(Capsule())
                 .shadow(color: AppTheme.accent.opacity(0.3), radius: 20, x: 0, y: 8)
             }
