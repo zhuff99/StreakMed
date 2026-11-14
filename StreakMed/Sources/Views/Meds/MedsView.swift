@@ -29,6 +29,7 @@ struct MedsView: View {
                     if healthImportAvailable {
                         Button { showImportSheet = true } label: {
                             Image(systemName: "heart.text.square")
+                                .accessibilityLabel("Import from Apple Health")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(AppTheme.accent)
                                 .padding(10)

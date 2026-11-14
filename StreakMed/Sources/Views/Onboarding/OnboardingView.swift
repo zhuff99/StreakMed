@@ -319,6 +319,7 @@ struct OnboardingMedsSetup: View {
                         Button { showImportSheet = true } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: "heart.text.square.fill")
+                                    .accessibilityLabel("Import from Apple Health")
                                     .font(.system(size: isPad ? 22 : 18))
                                     .foregroundColor(AppTheme.blue)
                                 Text("Import from Apple Health")

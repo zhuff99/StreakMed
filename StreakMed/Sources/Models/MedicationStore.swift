@@ -21,6 +21,18 @@ enum DayStatus: Equatable {
         }
     }
 
+    /// Spoken by VoiceOver on calendar cells.
+    var spokenLabel: String {
+        switch self {
+        case .perfect: return "all doses taken"
+        case .partial: return "some doses taken"
+        case .missed:  return "missed"
+        case .today:   return "today"
+        case .future:  return "no doses"
+        case .skipped: return "skipped"
+        }
+    }
+
     var sfSymbol: String {
         switch self {
         case .perfect: return "checkmark"

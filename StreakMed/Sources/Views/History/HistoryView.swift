@@ -41,6 +41,7 @@ struct HistoryView: View {
                     Spacer()
                     Button { showCalendar = true } label: {
                         Image(systemName: "calendar")
+                            .accessibilityLabel("Month calendar")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundColor(AppTheme.accent)
                             .padding(8)
@@ -155,6 +156,7 @@ struct WeekStrip: View {
                     withAnimation(.easeInOut(duration: 0.2)) { weekOffset -= 1 }
                 } label: {
                     Image(systemName: "chevron.left")
+                        .accessibilityLabel("Previous week")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(AppTheme.textMuted)
                         .frame(width: 28, height: 28)
@@ -176,6 +178,7 @@ struct WeekStrip: View {
                     withAnimation(.easeInOut(duration: 0.2)) { weekOffset = min(weekOffset + 1, 0) }
                 } label: {
                     Image(systemName: "chevron.right")
+                        .accessibilityLabel("Next week")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(weekOffset < 0 ? AppTheme.textMuted : AppTheme.textDim.opacity(0.3))
                         .frame(width: 28, height: 28)
@@ -202,6 +205,7 @@ struct WeekStrip: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(day.date.formatted(.dateTime.weekday(.wide).day())), \(day.status.spokenLabel)")
                 }
             }
             .frame(maxWidth: .infinity)
@@ -353,6 +357,7 @@ struct MonthCalendarView: View {
                             withAnimation(.easeInOut(duration: 0.2)) { monthOffset -= 1 }
                         } label: {
                             Image(systemName: "chevron.left")
+                                .accessibilityLabel("Previous month")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(AppTheme.textMuted)
                                 .frame(width: 36, height: 36)
@@ -374,6 +379,7 @@ struct MonthCalendarView: View {
                             }
                         } label: {
                             Image(systemName: "chevron.right")
+                                .accessibilityLabel("Next month")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(monthOffset < 0 ? AppTheme.textMuted : AppTheme.textDim.opacity(0.3))
                                 .frame(width: 36, height: 36)
@@ -410,6 +416,7 @@ struct MonthCalendarView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("\(date.formatted(.dateTime.month(.wide).day())), \(store.dayStatus(for: date).spokenLabel)")
                         }
                     }
 
