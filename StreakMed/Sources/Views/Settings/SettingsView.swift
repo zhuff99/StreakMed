@@ -18,6 +18,8 @@ struct SettingsView: View {
 
     @State private var notifStatus: UNAuthorizationStatus = .notDetermined  // live iOS permission status
     @State private var showPermissionAlert = false  // shown when toggling on but permission is denied
+    @State private var showNoPasscodeAlert = false  // Face ID lock needs a device passcode
+    @State private var showMailCopied      = false  // no Mail app: address copied instead
     @State private var showExportPicker    = false  // confirmation dialog: CSV vs PDF
     @State private var isExporting        = false  // prevents double-taps while generating
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
@@ -287,7 +289,13 @@ struct SettingsView: View {
                     SettingsToggleRow(
                         label: "Require Face ID / Passcode",
                         sub:   "Lock the app when it goes to the background",
-                        isOn:  $biometricLockEnabled
+                        isOn:  Binding(
+                            get: { biometricLockEnabled },
+                            set: { on in
+                                if on && !LockScreenView.canLock { showNoPasscodeAlert = true }
+                                else { biometricLockEnabled = on }
+                            }
+                        )
                     )
                 }
                 .padding(.horizontal, 24)
@@ -338,8 +346,14 @@ struct SettingsView: View {
                     }
                     Divider().background(AppTheme.border)
                     SettingsLinkRow(label: "Send Feedback", icon: "envelope.fill", color: AppTheme.blue) {
-                        if let url = URL(string: "mailto:feedback@streakmed.app?subject=StreakMed%20Feedback") {
-                            UIApplication.shared.open(url)
+                        if let url = URL(string: "mailto:streakmed.app@gmail.com?subject=StreakMed%20Feedback") {
+                            UIApplication.shared.open(url) { opened in
+                                // No mail app set up — hand them the address instead
+                                if !opened {
+                                    UIPasteboard.general.string = "streakmed.app@gmail.com"
+                                    showMailCopied = true
+                                }
+                            }
                         }
                     }
                     Divider().background(AppTheme.border)
@@ -390,6 +404,16 @@ struct SettingsView: View {
         } message: {
             Text("Your full dose history will be saved to a file you can share or save.")
         }
+        .alert("Set a Passcode First", isPresented: $showNoPasscodeAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The lock uses your iPhone's Face ID or passcode. Turn on a passcode in iPhone Settings → Face ID & Passcode, then try again.")
+        }
+        .alert("Email Copied", isPresented: $showMailCopied) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("No mail app is set up, so streakmed.app@gmail.com was copied to your clipboard.")
+        }
         .alert("Notifications Disabled", isPresented: $showPermissionAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -429,13 +453,11 @@ struct SettingsView: View {
         let context = store.viewContext
         switch format {
         case "csv":
-            DispatchQueue.global(qos: .userInitiated).async {
-                let url = HistoryExporter.makeCSV(context: context)
-                DispatchQueue.main.async {
-                    isExporting = false
-                    if let url { shareFile(url) }
-                }
-            }
+            // viewContext is main-queue only; touching it from a background
+            // thread is a CoreData threading violation (random crashes).
+            let url = HistoryExporter.makeCSV(context: context)
+            isExporting = false
+            if let url { shareFile(url) }
         case "report":
             let url = HistoryExporter.makeAdherenceReport(store.adherenceReport(days: 30))
             isExporting = false

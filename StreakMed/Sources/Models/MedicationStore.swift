@@ -493,7 +493,8 @@ final class MedicationStore: ObservableObject {
         if let remaining = med.pillsRemaining?.intValue {
             let newRemaining = max(0, remaining - med.quantityPerDose)
             med.pillsRemaining = NSNumber(value: newRemaining)
-            if newRemaining <= 7 {
+            // Alert when supply crosses 7, 3 and 0 — not on every dose once low.
+            if [7, 3, 0].contains(where: { remaining > $0 && newRemaining <= $0 }) {
                 NotificationManager.shared.scheduleRefillNotification(for: med, remaining: newRemaining)
             }
         }

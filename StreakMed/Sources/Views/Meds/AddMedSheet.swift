@@ -90,6 +90,17 @@ struct AddMedSheet: View {
     private let notesLimit = 100
     private let maxDoses   = 4
 
+    /// 6 h after the last dose, but never past 10 PM — rolling over midnight
+    /// made a "4th dose" at 2 AM that sorted first and showed Overdue all day.
+    static func nextDoseTime(after last: Date) -> Date {
+        let cal   = Calendar.current
+        let comps = cal.dateComponents([.hour, .minute], from: last)
+        let lastMin = (comps.hour ?? 8) * 60 + (comps.minute ?? 0)
+        let nextMin = lastMin + 6 * 60 <= 22 * 60 ? lastMin + 6 * 60
+                    : min(lastMin + 60, 23 * 60 + 30)
+        return cal.date(from: DateComponents(hour: nextMin / 60, minute: nextMin % 60)) ?? last
+    }
+
     private static func defaultTime() -> Date {
         Calendar.current.date(from: DateComponents(hour: 8, minute: 0)) ?? Date()
     }
@@ -531,10 +542,9 @@ struct AddMedSheet: View {
                                     .frame(width: 36)
                                 Button {
                                     if scheduledTimes.count < maxDoses {
-                                        // Default next dose 6 hours after last
+                                        // Next dose 6 h after the last, capped before midnight
                                         let last = scheduledTimes.last ?? AddMedSheet.defaultTime()
-                                        let next = Calendar.current.date(byAdding: .hour, value: 6, to: last) ?? last
-                                        scheduledTimes.append(next)
+                                        scheduledTimes.append(AddMedSheet.nextDoseTime(after: last))
                                     }
                                 } label: {
                                     Image(systemName: "plus")
@@ -617,7 +627,7 @@ struct AddMedSheet: View {
                             : "\(amount) \(doseUnit)"
                         let pills = pillsOnHand.trimmingCharacters(in: .whitespaces).isEmpty
                             ? nil : Int(pillsOnHand.trimmingCharacters(in: .whitespaces))
-                        let notesVal = notes.trimmingCharacters(in: .whitespaces)
+                        let notesVal = notes.trimmingCharacters(in: .whitespacesAndNewlines)
                         onSave(
                             name.trimmingCharacters(in: .whitespaces),
                             combinedDose,
@@ -699,9 +709,12 @@ struct AddMedSheet: View {
         if !info.notes.isEmpty { notes = String(info.notes.prefix(notesLimit)) }
 
         // Space dose times evenly through the day (e.g. 3 doses → every 8 hours)
+        // Spread doses across a 12-hour waking window (2 → 8 AM / 8 PM,
+        // 3 → 8/2/8, 4 → 8/12/4/8) instead of round the clock, which put
+        // the last dose at midnight.
         let cal   = Calendar.current
         let count = min(max(info.dosesPerDay, 1), maxDoses)
-        let gap   = count > 1 ? (24 / count) : 0
+        let gap   = count > 1 ? 12 / (count - 1) : 0
         scheduledTimes = (0..<count).compactMap { i in
             let hour = (info.scheduledHour + i * gap) % 24
             return cal.date(from: DateComponents(hour: hour, minute: 0))

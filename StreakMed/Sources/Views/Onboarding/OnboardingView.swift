@@ -528,7 +528,8 @@ struct OnboardingFaceID: View {
 
             VStack(spacing: 14) {
                 OnboardingCTA(label: enableLabel, style: .primary) {
-                    biometricLockEnabled = true
+                    // No passcode on the device → nothing to unlock with; skip.
+                    biometricLockEnabled = LockScreenView.canLock
                     onComplete()
                 }
 

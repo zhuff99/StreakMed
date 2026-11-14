@@ -5,6 +5,16 @@ struct LockScreenView: View {
     let onUnlock: () -> Void
 
     @State private var biometryType: LABiometryType = .none
+    @State private var isAuthenticating = false
+    @Environment(\.scenePhase) private var scenePhase
+
+    /// False when the device has no passcode (or it was removed after the lock
+    /// was turned on). There is nothing to authenticate against, so locking
+    /// would shut the user out of their own data — let them in instead.
+    static var canLock: Bool {
+        var err: NSError?
+        return LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: &err)
+    }
 
     var body: some View {
         ZStack {
@@ -58,6 +68,11 @@ struct LockScreenView: View {
             detectBiometryType()
             authenticate()
         }
+        // The lock appears while the app goes to the background, where the
+        // prompt can't show — ask again when the user comes back.
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { authenticate() }
+        }
     }
 
     // MARK: - Helpers
@@ -88,12 +103,16 @@ struct LockScreenView: View {
     /// Uses .deviceOwnerAuthentication so Face ID / Touch ID automatically
     /// falls back to the device passcode if biometrics fail or aren't set up.
     private func authenticate() {
+        guard Self.canLock else { onUnlock(); return }
+        guard !isAuthenticating, UIApplication.shared.applicationState == .active else { return }
+        isAuthenticating = true
         let ctx = LAContext()
         ctx.evaluatePolicy(
             .deviceOwnerAuthentication,
             localizedReason: "Unlock StreakMed to view your medications"
         ) { success, _ in
             DispatchQueue.main.async {
+                isAuthenticating = false
                 if success { onUnlock() }
             }
         }

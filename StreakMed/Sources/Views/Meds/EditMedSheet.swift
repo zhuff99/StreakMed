@@ -62,6 +62,17 @@ struct EditMedSheet: View {
         _notes           = State(initialValue: med.notes ?? "")
     }
 
+    /// 6 h after the last dose, but never past 10 PM — rolling over midnight
+    /// made a "4th dose" at 2 AM that sorted first and showed Overdue all day.
+    static func nextDoseTime(after last: Date) -> Date {
+        let cal   = Calendar.current
+        let comps = cal.dateComponents([.hour, .minute], from: last)
+        let lastMin = (comps.hour ?? 8) * 60 + (comps.minute ?? 0)
+        let nextMin = lastMin + 6 * 60 <= 22 * 60 ? lastMin + 6 * 60
+                    : min(lastMin + 60, 23 * 60 + 30)
+        return cal.date(from: DateComponents(hour: nextMin / 60, minute: nextMin % 60)) ?? last
+    }
+
     private static func defaultTime() -> Date {
         Calendar.current.date(from: DateComponents(hour: 8, minute: 0)) ?? Date()
     }
@@ -392,8 +403,7 @@ struct EditMedSheet: View {
                                 Button {
                                     if scheduledTimes.count < maxDoses {
                                         let last = scheduledTimes.last ?? EditMedSheet.defaultTime()
-                                        let next = Calendar.current.date(byAdding: .hour, value: 6, to: last) ?? last
-                                        scheduledTimes.append(next)
+                                        scheduledTimes.append(EditMedSheet.nextDoseTime(after: last))
                                     }
                                 } label: {
                                     Image(systemName: "plus")
@@ -474,7 +484,7 @@ struct EditMedSheet: View {
                             : "\(amount) \(doseUnit)"
                         let pills = pillsOnHand.trimmingCharacters(in: .whitespaces).isEmpty
                             ? nil : Int(pillsOnHand.trimmingCharacters(in: .whitespaces))
-                        let notesVal = notes.trimmingCharacters(in: .whitespaces)
+                        let notesVal = notes.trimmingCharacters(in: .whitespacesAndNewlines)
                         onSave(
                             name.trimmingCharacters(in: .whitespaces),
                             combinedDose,
