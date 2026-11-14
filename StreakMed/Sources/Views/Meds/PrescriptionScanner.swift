@@ -20,12 +20,17 @@ struct ScannedMedInfo {
 
     init(from dict: [String: Any]) {
         name          = dict["name"]          as? String ?? ""
-        doseAmount    = dict["doseAmount"]    as? String ?? ""
+        // The model sometimes returns numbers where strings were asked for
+        // (and vice versa) — accept either.
+        func int(_ v: Any?) -> Int? { (v as? Int) ?? (v as? String).flatMap { Int($0) } ?? (v as? Double).map { Int($0) } }
+        if let s = dict["doseAmount"] as? String { doseAmount = s }
+        else if let n = dict["doseAmount"] as? NSNumber { doseAmount = n.stringValue }
+        else { doseAmount = "" }
         doseUnit      = dict["doseUnit"]      as? String ?? "mg"
         type          = dict["type"]          as? String ?? "General"
-        pillCount     = dict["pillCount"]     as? Int
-        dosesPerDay   = dict["dosesPerDay"]   as? Int    ?? 1
-        scheduledHour = dict["scheduledHour"] as? Int    ?? 8
+        pillCount     = int(dict["pillCount"])
+        dosesPerDay   = min(max(int(dict["dosesPerDay"]) ?? 1, 1), 4)
+        scheduledHour = min(max(int(dict["scheduledHour"]) ?? 8, 0), 23)
         notes         = dict["notes"]         as? String ?? ""
     }
 }

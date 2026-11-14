@@ -27,7 +27,7 @@ enum APIKeyStore {
     }
 
     static func save(_ key: String) {
-        let trimmed = key.trimmingCharacters(in: .whitespaces)
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)   // pasted keys often end in a newline
         guard !trimmed.isEmpty else { delete(); return }
 
         let data = Data(trimmed.utf8)

@@ -44,6 +44,8 @@ struct ContentView: View {
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
     @AppStorage(AppPalette.storageKey)  private var paletteRaw = AppPalette.midnight.rawValue
     @State private var isLocked = false
+    // Database didn't open — warn instead of silently losing new entries
+    @State private var showStoreWarning = PersistenceController.shared.loadFailed
 
     // Badge unlock overlay
     @State private var showBadgeUnlock = false
@@ -165,6 +167,11 @@ struct ContentView: View {
         // Navigate to the Meds tab when the empty-state "Add Medications" button is tapped
         .onReceive(NotificationCenter.default.publisher(for: .navigateToMeds)) { _ in
             selectedTab = .meds
+        }
+        .alert("Couldn't Open Your Data", isPresented: $showStoreWarning) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("StreakMed couldn't load your saved medications this time. Your data is still on your phone. Please close the app fully and reopen it — anything you change right now won't be saved.")
         }
         // Handle "Mark as Taken" tapped directly on the notification banner.
         // NotificationManager posts this event with the notification identifier as its object;
