@@ -193,7 +193,9 @@ struct ContentView: View {
         NotificationManager.shared.clearBadge()
         let cal          = Calendar.current
         let today        = cal.startOfDay(for: Date())
-        let lastKey      = "lastNotifRescheduleDate"
+        // "_v2": 1.2.1 changed trigger IDs (weekday-aware), so every install
+        // reschedules once on first launch instead of waiting for tomorrow.
+        let lastKey      = "lastNotifRescheduleDate_v2"
         let lastSchedule = UserDefaults.standard.object(forKey: lastKey) as? Date ?? .distantPast
         if !cal.isDate(lastSchedule, inSameDayAs: today) {
             rescheduleNotifications()
@@ -212,11 +214,7 @@ struct ContentView: View {
         // rescheduleAll blindly sets up repeating daily triggers for every dose.
         // Re-apply the "tomorrow only" suppression for any doses already taken today
         // so the user doesn't get a notification for a dose they've already logged.
-        for med in store.medications {
-            for i in 0..<med.doseSlots where store.isTaken(med, doseIndex: i) {
-                NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: i)
-            }
-        }
+        store.medications.forEach { store.requietTakenDoses(of: $0) }
     }
 }
 

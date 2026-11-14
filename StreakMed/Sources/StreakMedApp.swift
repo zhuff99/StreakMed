@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import UserNotifications
 
 
 @main
@@ -20,6 +21,21 @@ struct StreakMedApp: App {
             "snoozeEnabled":             true,   // the Snooze button always showed before 1.2.1
         ])
         NotificationManager.shared.registerCategories()
+        #if DEBUG
+        // `-dumpNotifs`: print every pending reminder + trigger a few seconds
+        // after launch (headless check of the schedule from the simulator).
+        if ProcessInfo.processInfo.arguments.contains("-dumpNotifs") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                UNUserNotificationCenter.current().getPendingNotificationRequests { reqs in
+                    for r in reqs.sorted(by: { $0.identifier < $1.identifier }) {
+                        let t = (r.trigger as? UNCalendarNotificationTrigger)
+                        print("NOTIF \(r.identifier.split(separator: "_").dropFirst().joined(separator: "_")) | \(r.content.title) | \(t?.dateComponents.description ?? "-") repeats=\(t?.repeats ?? false)")
+                    }
+                    print("NOTIF total=\(reqs.count)")
+                }
+            }
+        }
+        #endif
         configureAppearance()
     }
 

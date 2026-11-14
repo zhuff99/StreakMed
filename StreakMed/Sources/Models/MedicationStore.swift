@@ -334,6 +334,32 @@ final class MedicationStore: ObservableObject {
         UserDefaults.standard.set(Array(skippedDays), forKey: "skippedDays")
         // Manually fire objectWillChange because Set mutations don't always trigger @Published
         objectWillChange.send()
+
+        // Skipping today should silence today's reminders and "still haven't
+        // taken" nags; unskipping brings back the ones still ahead.
+        let cal = Calendar.current
+        if cal.isDate(date, inSameDayAs: DebugDateManager.shared.currentDate) {
+            for med in medications where med.isScheduled(on: date) {
+                if skippedDays.contains(key) {
+                    for i in 0..<med.doseSlots { NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: i) }
+                } else {
+                    NotificationManager.shared.cancelAllNotifications(for: med)
+                    NotificationManager.shared.scheduleNotification(for: med)
+                    requietTakenDoses(of: med)
+                }
+            }
+        }
+        updateBestStreak()
+        updateWidgetSnapshot()
+    }
+
+    /// scheduleNotification re-arms every dose; doses already logged today
+    /// (or a skipped today) shouldn't fire again later today.
+    func requietTakenDoses(of med: Medication, except skipIndex: Int? = nil) {
+        let today = DebugDateManager.shared.currentDate
+        for i in 0..<med.doseSlots where i != skipIndex && (isTaken(med, doseIndex: i) || isSkipped(today)) {
+            NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: i)
+        }
     }
 
     init(context: NSManagedObjectContext) {
@@ -535,10 +561,9 @@ final class MedicationStore: ObservableObject {
 
         // Re-arm this med's reminders, then re-quiet any of its other doses
         // already taken today (scheduleNotification resets every dose slot).
+        NotificationManager.shared.cancelAllNotifications(for: med)
         NotificationManager.shared.scheduleNotification(for: med)
-        for i in 0..<med.doseSlots where i != doseIndex && isTaken(med, doseIndex: i) {
-            NotificationManager.shared.cancelTodayNotification(for: med, doseIndex: i)
-        }
+        requietTakenDoses(of: med, except: doseIndex)
     }
 
     // MARK: - Streak
@@ -883,6 +908,7 @@ final class MedicationStore: ObservableObject {
         updateWidgetSnapshot()
         NotificationManager.shared.cancelAllNotifications(for: med)
         NotificationManager.shared.scheduleNotification(for: med)
+        requietTakenDoses(of: med)   // an edit must not re-arm doses already taken today
     }
 
     /// Soft-deletes a medication by setting isActive = false rather than removing

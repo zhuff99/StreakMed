@@ -56,6 +56,7 @@ final class NotificationManager: NSObject {
     func doseFor(notificationID id: String, in meds: [Medication]) -> (Medication, Int)? {
         var base = id
         while base.hasSuffix("_snooze") { base = String(base.dropLast("_snooze".count)) }
+        if let r = base.range(of: #"_wd[1-7]$"#, options: .regularExpression) { base.removeSubrange(r) }
         if base.hasSuffix("_followup") { base = String(base.dropLast("_followup".count)) }
         for med in meds {
             guard let medBase = med.notificationID else { continue }
@@ -76,74 +77,30 @@ final class NotificationManager: NSObject {
     }
 
     // MARK: - Schedule
+    //
+    // Every dose has two reminder streams: the reminder (dose time − lead) and
+    // the missed-dose follow-up (dose time + N hours). A daily med gets one
+    // repeating [hour, minute] trigger per stream (ID "…_dose_i"). A med on
+    // specific weekdays gets one repeating [weekday, hour, minute] trigger per
+    // weekday (ID "…_dose_i_wdN", N = dose weekday) — before 1.2.1 those meds
+    // were reminded and nagged every day of the week.
 
-    /// Schedules one daily repeating notification per dose time for the given medication,
-    /// plus an optional missed-dose follow-up if the user hasn't logged the dose after X hours.
-    func scheduleNotification(for med: Medication) {
-        guard Self.remindersEnabled else { return }
-        guard let name = med.name, let baseID = med.notificationID else { return }
-
-        let leadMinutes = UserDefaults.standard.integer(forKey: "reminderLeadMinutes")
-        let cal         = Calendar.current
-        let times       = med.doseTimesArray.isEmpty
-            ? (med.scheduledTime.map { [$0] } ?? [])
-            : med.doseTimesArray
-
-        guard !times.isEmpty else { return }
-
-        for (index, time) in times.enumerated() {
-            let fireTime = leadMinutes > 0
-                ? (cal.date(byAdding: .minute, value: -leadMinutes, to: time) ?? time)
-                : time
-
-            let content        = UNMutableNotificationContent()
-            content.title      = notifTitle(name: name, doseIndex: index,
-                                            totalDoses: times.count, leadMinutes: leadMinutes)
-            content.body       = med.dose == nil ? "Don't forget your medication." : "Take \(med.doseLabel)"
-            content.sound      = .default
-            content.badge      = 1
-            // Dose times are exactly what Apple's time-sensitive level is
-            // for — these break through Focus modes (user-revocable per app).
-            content.interruptionLevel  = .timeSensitive
-            content.categoryIdentifier = "MEDICATION_REMINDER"
-
-            let comps   = cal.dateComponents([.hour, .minute], from: fireTime)
-            let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
-            let request = UNNotificationRequest(
-                identifier: doseNotifID(baseID: baseID, doseIndex: index),
-                content:    content,
-                trigger:    trigger
-            )
-
-            UNUserNotificationCenter.current().add(request) { error in
-                if let error = error {
-                    print("[StreakMed] Notification schedule error (dose \(index)): \(error)")
-                }
-            }
-
-            // Schedule missed-dose follow-up if the feature is enabled
-            scheduleFollowUp(for: med, doseIndex: index, scheduledTime: time, baseID: baseID,
-                             name: name, totalDoses: times.count)
-        }
+    private func reminderContent(for med: Medication, name: String, doseIndex: Int,
+                                 totalDoses: Int, leadMinutes: Int) -> UNMutableNotificationContent {
+        let content        = UNMutableNotificationContent()
+        content.title      = notifTitle(name: name, doseIndex: doseIndex,
+                                        totalDoses: totalDoses, leadMinutes: leadMinutes)
+        content.body       = med.dose == nil ? "Don't forget your medication." : "Take \(med.doseLabel)"
+        content.sound      = .default
+        content.badge      = 1
+        // Dose times are exactly what Apple's time-sensitive level is
+        // for — these break through Focus modes (user-revocable per app).
+        content.interruptionLevel  = .timeSensitive
+        content.categoryIdentifier = "MEDICATION_REMINDER"
+        return content
     }
 
-    /// Schedules a daily repeating follow-up notification fired X hours after the dose time.
-    /// Cancelled immediately when the user marks the dose as taken.
-    /// `skipToday`: the dose was already taken today, so if today's follow-up
-    /// moment is still ahead, pin a one-shot to tomorrow instead of a daily
-    /// repeat — otherwise the repeat fires today for a dose already logged.
-    private func scheduleFollowUp(for med: Medication, doseIndex: Int, scheduledTime: Date,
-                                  baseID: String, name: String, totalDoses: Int,
-                                  skipToday: Bool = false) {
-        guard UserDefaults.standard.bool(forKey: "missedDoseReminderEnabled") else { return }
-
-        let followUpHours = max(1, UserDefaults.standard.integer(forKey: "missedDoseFollowUpHours") == 0
-            ? 2
-            : UserDefaults.standard.integer(forKey: "missedDoseFollowUpHours"))
-        let cal = Calendar.current
-
-        guard let followUpTime = cal.date(byAdding: .hour, value: followUpHours, to: scheduledTime) else { return }
-
+    private func followUpContent(name: String, doseIndex: Int, totalDoses: Int) -> UNMutableNotificationContent {
         let content   = UNMutableNotificationContent()
         content.title = totalDoses > 1
             ? "Still haven't taken \(name) · Dose \(doseIndex + 1)"
@@ -151,110 +108,125 @@ final class NotificationManager: NSObject {
         content.body  = "Don't let your streak slip — log your dose when you're ready."
         content.sound = .default
         content.badge = 1
-        content.interruptionLevel = .timeSensitive
+        content.interruptionLevel  = .timeSensitive
         content.categoryIdentifier = "MEDICATION_REMINDER"   // Mark as Taken works here too
-
-        let comps = cal.dateComponents([.hour, .minute], from: followUpTime)
-        let trigger: UNCalendarNotificationTrigger
-        if skipToday && Date() < followUpTime {
-            let tomorrow = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date())) ?? Date()
-            var tomorrowComps = cal.dateComponents([.year, .month, .day], from: tomorrow)
-            tomorrowComps.hour   = comps.hour
-            tomorrowComps.minute = comps.minute
-            trigger = UNCalendarNotificationTrigger(dateMatching: tomorrowComps, repeats: false)
-        } else {
-            trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
-        }
-        let request = UNNotificationRequest(
-            identifier: followUpNotifID(baseID: baseID, doseIndex: doseIndex),
-            content:    content,
-            trigger:    trigger
-        )
-        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+        return content
     }
 
-    /// Cancels today's notification for a specific dose and reschedules it for tomorrow.
-    /// Also cancels today's missed-dose follow-up (dose was taken, so no follow-up needed).
-    /// Call this as soon as the user marks that individual dose as taken.
-    func cancelTodayNotification(for med: Medication, doseIndex: Int = 0) {
-        guard let name = med.name, let baseID = med.notificationID else { return }
+    private var followUpMinutes: Int? {
+        guard UserDefaults.standard.bool(forKey: "missedDoseReminderEnabled") else { return nil }
+        let h = UserDefaults.standard.integer(forKey: "missedDoseFollowUpHours")
+        return max(1, h == 0 ? 2 : h) * 60
+    }
 
-        let notifID = doseNotifID(baseID: baseID, doseIndex: doseIndex)
-        // Cancel the reminder, follow-up and any snoozed copies for today, and
-        // clear already-delivered ones from Notification Center (dose is done).
-        let related = [notifID, followUpNotifID(baseID: baseID, doseIndex: doseIndex)]
-        let ids = related + related.map { $0 + "_snooze" } + related.map { $0 + "_snooze_snooze" }
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
-        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
-
-        guard Self.remindersEnabled else { return }
-
-        let times = med.doseTimesArray.isEmpty
-            ? (med.scheduledTime.map { [$0] } ?? [])
-            : med.doseTimesArray
-
-        guard doseIndex < times.count else { return }
-
-        let leadMinutes = UserDefaults.standard.integer(forKey: "reminderLeadMinutes")
-        let time        = times[doseIndex]
-        let fireTime    = leadMinutes > 0
-            ? (Calendar.current.date(byAdding: .minute, value: -leadMinutes, to: time) ?? time)
-            : time
-
-        let content        = UNMutableNotificationContent()
-        content.title      = notifTitle(name: name, doseIndex: doseIndex,
-                                        totalDoses: times.count, leadMinutes: leadMinutes)
-        content.body       = med.dose == nil ? "Don't forget your medication." : "Take \(med.doseLabel)"
-        content.sound      = .default
-        content.badge      = 1
-        content.interruptionLevel  = .timeSensitive
-        content.categoryIdentifier = "MEDICATION_REMINDER"
-
-        let cal       = Calendar.current
-        let fireComps = cal.dateComponents([.hour, .minute], from: fireTime)
-        let fireHour   = fireComps.hour   ?? 8
-        let fireMinute = fireComps.minute ?? 0
-
-        // If today's fire time hasn't passed yet, the repeating trigger would fire AGAIN today.
-        // Instead, schedule a one-shot explicitly for tomorrow so the user isn't reminded
-        // about a dose they already took.
-        let now        = Date()
-        let todayFire  = cal.date(bySettingHour: fireHour, minute: fireMinute, second: 0, of: now) ?? now
-
-        let trigger: UNCalendarNotificationTrigger
-        if now >= todayFire {
-            // Fire time already passed — repeating trigger safely fires next at tomorrow
-            trigger = UNCalendarNotificationTrigger(dateMatching: fireComps, repeats: true)
-        } else {
-            // Fire time is still ahead today — pin to tomorrow's explicit date
-            let tomorrow      = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: now))!
-            var tomorrowComps = cal.dateComponents([.year, .month, .day], from: tomorrow)
-            tomorrowComps.hour   = fireHour
-            tomorrowComps.minute = fireMinute
-            trigger = UNCalendarNotificationTrigger(dateMatching: tomorrowComps, repeats: false)
+    /// Adds one reminder stream firing `offsetMinutes` from `doseTime` on every
+    /// day the med is scheduled. `quietToday`: today's dose is already logged,
+    /// so if today's occurrence is still ahead, that one entry becomes a
+    /// one-shot at its next occurrence (rescheduleAll restores the repeat the
+    /// next day the app opens).
+    private func addStream(id: String, content: UNNotificationContent, med: Medication,
+                           doseTime: Date, offsetMinutes: Int, quietToday: Bool) {
+        let cal   = Calendar.current
+        let now   = Date()
+        let today = cal.startOfDay(for: now)
+        let dc    = cal.dateComponents([.hour, .minute], from: doseTime)
+        func fire(onDoseDay day: Date) -> Date {
+            let dose = cal.date(bySettingHour: dc.hour ?? 8, minute: dc.minute ?? 0, second: 0, of: day) ?? day
+            return dose.addingTimeInterval(TimeInterval(offsetMinutes * 60))
+        }
+        func add(_ id: String, _ trigger: UNNotificationTrigger) {
+            let req = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+            UNUserNotificationCenter.current().add(req) { error in
+                #if DEBUG
+                if let error { print("[StreakMed] Notification schedule error \(id): \(error)") }
+                #endif
+            }
+        }
+        func oneShot(_ id: String, at date: Date) {
+            let c = cal.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+            add(id, UNCalendarNotificationTrigger(dateMatching: c, repeats: false))
         }
 
-        let request = UNNotificationRequest(identifier: notifID, content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+        let days  = med.scheduledWeekdays
+        let todayW = cal.component(.weekday, from: today)
+        let skipTodaysOccurrence = quietToday && days.contains(todayW) && fire(onDoseDay: today) > now
 
-        // Reschedule the missed-dose follow-up for tomorrow. skipToday matters when
-        // the dose was taken early: a daily repeat would still fire later today.
-        scheduleFollowUp(for: med, doseIndex: doseIndex, scheduledTime: time,
-                         baseID: baseID, name: name,
-                         totalDoses: med.doseTimesArray.isEmpty ? 1 : med.doseTimesArray.count,
-                         skipToday: true)
+        if days.count == 7 {
+            if skipTodaysOccurrence {
+                oneShot(id, at: fire(onDoseDay: cal.date(byAdding: .day, value: 1, to: today)!))
+            } else {
+                let c = cal.dateComponents([.hour, .minute], from: fire(onDoseDay: today))
+                add(id, UNCalendarNotificationTrigger(dateMatching: c, repeats: true))
+            }
+            return
+        }
+        for w in days {
+            let wid = "\(id)_wd\(w)"
+            // Next date (from today) that falls on weekday w
+            let ahead = (w - todayW + 7) % 7
+            let doseDay = cal.date(byAdding: .day, value: ahead, to: today)!
+            if w == todayW && skipTodaysOccurrence {
+                oneShot(wid, at: fire(onDoseDay: cal.date(byAdding: .day, value: 7, to: today)!))
+            } else {
+                let c = cal.dateComponents([.weekday, .hour, .minute], from: fire(onDoseDay: doseDay))
+                add(wid, UNCalendarNotificationTrigger(dateMatching: c, repeats: true))
+            }
+        }
+    }
+
+    /// Schedules reminders (and follow-ups) for every dose of `med`.
+    func scheduleNotification(for med: Medication) {
+        guard Self.remindersEnabled else { return }
+        for i in 0..<med.doseTimesArray.count { scheduleDose(med, doseIndex: i, quietToday: false) }
+    }
+
+    private func scheduleDose(_ med: Medication, doseIndex: Int, quietToday: Bool) {
+        guard Self.remindersEnabled, let name = med.name, let baseID = med.notificationID else { return }
+        let times = med.doseTimesArray
+        guard doseIndex < times.count else { return }
+        let lead = UserDefaults.standard.integer(forKey: "reminderLeadMinutes")
+        addStream(id: doseNotifID(baseID: baseID, doseIndex: doseIndex),
+                  content: reminderContent(for: med, name: name, doseIndex: doseIndex,
+                                           totalDoses: times.count, leadMinutes: lead),
+                  med: med, doseTime: times[doseIndex], offsetMinutes: -lead, quietToday: quietToday)
+        if let follow = followUpMinutes {
+            addStream(id: followUpNotifID(baseID: baseID, doseIndex: doseIndex),
+                      content: followUpContent(name: name, doseIndex: doseIndex, totalDoses: times.count),
+                      med: med, doseTime: times[doseIndex], offsetMinutes: follow, quietToday: quietToday)
+        }
+    }
+
+    /// Every pending/delivered ID that can belong to one dose.
+    private func allIDs(baseID: String, doseIndex: Int) -> [String] {
+        let roots = [doseNotifID(baseID: baseID, doseIndex: doseIndex),
+                     followUpNotifID(baseID: baseID, doseIndex: doseIndex)]
+        var ids: [String] = []
+        for r in roots {
+            ids.append(r)
+            for w in 1...7 { ids.append("\(r)_wd\(w)") }
+        }
+        // Snoozed copies (snoozes of snoozes too)
+        return ids + ids.map { $0 + "_snooze" } + ids.map { $0 + "_snooze_snooze" }
+    }
+
+    /// The dose was logged (or the day skipped): clear its reminder, follow-up
+    /// and snoozes for today, then re-arm them from the next occurrence on.
+    func cancelTodayNotification(for med: Medication, doseIndex: Int = 0) {
+        guard let baseID = med.notificationID else { return }
+        let ids = allIDs(baseID: baseID, doseIndex: doseIndex)
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+        scheduleDose(med, doseIndex: doseIndex, quietToday: true)
     }
 
     /// Cancels ALL notifications for a medication (e.g. when deleting or editing it).
     func cancelAllNotifications(for med: Medication) {
         guard let baseID = med.notificationID else { return }
-        // Cancel legacy single-dose ID + per-dose IDs + follow-ups (cover up to 10 doses)
-        var ids = [baseID]
-        for i in 0..<10 {
-            ids.append(doseNotifID(baseID: baseID, doseIndex: i))
-            ids.append(followUpNotifID(baseID: baseID, doseIndex: i))
-        }
+        // Legacy single-dose ID + every per-dose variant (cover up to 10 doses)
+        var ids = [baseID, baseID + "_refill"]
+        for i in 0..<10 { ids += allIDs(baseID: baseID, doseIndex: i) }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
     }
 
     /// Fires a one-time refill reminder when the supply on hand drops to or below 7.
