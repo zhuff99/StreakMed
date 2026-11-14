@@ -6,6 +6,7 @@ struct LockScreenView: View {
 
     @State private var biometryType: LABiometryType = .none
     @State private var isAuthenticating = false
+    @State private var cameFromBackground = false
     @Environment(\.scenePhase) private var scenePhase
 
     /// False when the device has no passcode (or it was removed after the lock
@@ -66,12 +67,22 @@ struct LockScreenView: View {
         }
         .onAppear {
             detectBiometryType()
+            // Usually created as the app goes to the background — remember
+            // that, so the return to the foreground triggers the prompt.
+            if UIApplication.shared.applicationState != .active { cameFromBackground = true }
             authenticate()
         }
         // The lock appears while the app goes to the background, where the
-        // prompt can't show — ask again when the user comes back.
+        // prompt can't show — ask again when the user comes back. Only after a
+        // real trip to the background: the Face ID sheet itself toggles the
+        // app inactive → active, and re-prompting on that would loop forever
+        // when the user taps Cancel.
         .onChange(of: scenePhase) { phase in
-            if phase == .active { authenticate() }
+            if phase == .background { cameFromBackground = true }
+            if phase == .active && cameFromBackground {
+                cameFromBackground = false
+                authenticate()
+            }
         }
     }
 
