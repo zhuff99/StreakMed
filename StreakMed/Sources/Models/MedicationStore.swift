@@ -113,6 +113,22 @@ extension Medication {
     /// Dose slots per scheduled day (legacy meds with no times still count as one).
     var doseSlots: Int { max(1, doseTimesArray.count) }
 
+    /// Dose slots that count toward `day`. On the day a med is added, doses
+    /// whose time had already passed don't count — adding an 8 AM med at
+    /// 9 PM used to make that day "missed" and break the streak at midnight.
+    func requiredSlots(on day: Date) -> Int {
+        let cal = Calendar.current
+        guard let created = createdAt, cal.isDate(created, inSameDayAs: day) else { return doseSlots }
+        let c = cal.dateComponents([.hour, .minute], from: created)
+        let addedAt = (c.hour ?? 0) * 60 + (c.minute ?? 0)
+        let times = doseTimesArray
+        guard !times.isEmpty else { return doseSlots }
+        return times.filter {
+            let d = cal.dateComponents([.hour, .minute], from: $0)
+            return (d.hour ?? 0) * 60 + (d.minute ?? 0) >= addedAt
+        }.count
+    }
+
     /// False for days before the med was added. A med added today must not
     /// count against past days — before 1.2.1 adding a med wiped the streak.
     func existed(on day: Date) -> Bool {
@@ -628,7 +644,7 @@ final class MedicationStore: ObservableObject {
             }
 
             let complete = scheduledForDay.allSatisfy {
-                (takenByDay[day]?[$0.objectID]?.count ?? 0) >= $0.doseSlots
+                (takenByDay[day]?[$0.objectID]?.count ?? 0) >= $0.requiredSlots(on: day)
             }
 
             if complete {
@@ -657,7 +673,7 @@ final class MedicationStore: ObservableObject {
 
     /// Active meds that count on `day`: scheduled that weekday and already added.
     func scheduledMeds(on day: Date) -> [Medication] {
-        medications.filter { $0.isScheduled(on: day) && $0.existed(on: day) }
+        medications.filter { $0.isScheduled(on: day) && $0.existed(on: day) && $0.requiredSlots(on: day) > 0 }
     }
 
     /// Distinct taken dose indexes per day per med, in one fetch. Counting
@@ -714,9 +730,11 @@ final class MedicationStore: ObservableObject {
         if startDay > today  { return .future }
         if startDay == today {
             // Everything done today → show the check now (the streak already counts it)
-            let items = scheduledTodayDoseItems
-            return !items.isEmpty && items.allSatisfy { isTaken($0.medication, doseIndex: $0.doseIndex) } && !isSkipped(date)
-                ? .perfect : .today
+            let meds = scheduledMeds(on: date)
+            let done = !meds.isEmpty && !isSkipped(date) && meds.allSatisfy { med in
+                (0..<med.doseSlots).filter { isTaken(med, doseIndex: $0) }.count >= med.requiredSlots(on: date)
+            }
+            return done ? .perfect : .today
         }
 
         // Dates before the earliest medication was added have no data — show as neutral
@@ -735,8 +753,8 @@ final class MedicationStore: ObservableObject {
 
         let endDay = cal.date(byAdding: .day, value: 1, to: startDay)!
         let sets   = takenDoses(from: startDay, to: endDay)[startDay] ?? [:]
-        let taken  = scheduledForDay.reduce(0) { $0 + min($1.doseSlots, sets[$1.objectID]?.count ?? 0) }
-        let total  = scheduledForDay.reduce(0) { $0 + $1.doseSlots }
+        let taken  = scheduledForDay.reduce(0) { $0 + min($1.requiredSlots(on: date), sets[$1.objectID]?.count ?? 0) }
+        let total  = scheduledForDay.reduce(0) { $0 + $1.requiredSlots(on: date) }
         if taken == 0     { return .missed  }
         if taken >= total { return .perfect }
         return .partial
@@ -764,8 +782,8 @@ final class MedicationStore: ObservableObject {
             guard !isSkipped(day) else { continue }
             // Count dose slots, not meds — a twice-daily med is two slots.
             for med in scheduledMeds(on: day) {
-                totalScheduled += med.doseSlots
-                totalTaken     += min(med.doseSlots, taken[day]?[med.objectID]?.count ?? 0)
+                totalScheduled += med.requiredSlots(on: day)
+                totalTaken     += min(med.requiredSlots(on: day), taken[day]?[med.objectID]?.count ?? 0)
             }
         }
 
@@ -839,7 +857,8 @@ final class MedicationStore: ObservableObject {
                 for med in medications {
                     guard med.isScheduled(on: day) else { continue }
                     if let created = med.createdAt, cal.startOfDay(for: created) > day { continue }
-                    let slots = max(1, med.doseTimesArray.count)
+                    let slots = med.requiredSlots(on: day)
+                    guard slots > 0 else { continue }
                     let got   = min(slots, takenByMedDay[med.objectID]?[day] ?? 0)
                     scheduledFor[med.objectID, default: 0] += slots
                     takenFor[med.objectID, default: 0]     += got

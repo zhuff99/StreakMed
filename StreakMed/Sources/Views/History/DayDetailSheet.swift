@@ -146,7 +146,7 @@ private struct DayDetailMedRow: View {
 
     private var takenLog:    DoseLog? { store.logForMed(med, on: date) }
     private var takenCount:  Int      { store.takenCount(med, on: date) }
-    private var isTaken:     Bool     { takenCount >= med.doseSlots }
+    private var isTaken:     Bool     { takenCount >= med.requiredSlots(on: date) }
     /// Multi-dose med with some but not all doses logged.
     private var isPartial:   Bool     { takenCount > 0 && !isTaken }
     private var isSkippedDay: Bool    { store.isSkipped(date) }
@@ -192,7 +192,7 @@ private struct DayDetailMedRow: View {
 
             // Time badge
             if isPartial {
-                Text("\(takenCount) of \(med.doseSlots)")
+                Text("\(takenCount) of \(med.requiredSlots(on: date))")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(AppTheme.partial)
             } else if isTaken, let log = takenLog, let t = log.takenAt {
