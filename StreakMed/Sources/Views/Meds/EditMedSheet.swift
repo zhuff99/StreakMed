@@ -416,12 +416,7 @@ struct EditMedSheet: View {
                                 }
                             }
                         }
-                        if scheduledTimes.count == 1 {
-                            DatePicker("", selection: $scheduledTimes[0], displayedComponents: .hourAndMinute)
-                                .datePickerStyle(.wheel)
-                                .labelsHidden()
-                                .frame(maxWidth: .infinity)
-                        } else {
+                        Group {   // tappable rows even for one dose: an inline wheel inside the scroll view got spun by scrolling past it
                             VStack(spacing: 8) {
                                 ForEach(scheduledTimes.indices, id: \.self) { i in
                                     Button {
@@ -433,7 +428,7 @@ struct EditMedSheet: View {
                                                 Image(systemName: "clock.fill")
                                                     .font(.system(size: 12))
                                                     .foregroundColor(AppTheme.textMuted)
-                                                Text("Dose \(i + 1)")
+                                                Text(scheduledTimes.count == 1 ? "Time" : "Dose \(i + 1)")
                                                     .font(.system(size: 14, weight: .medium))
                                                     .foregroundColor(AppTheme.textMuted)
                                             }
@@ -463,7 +458,7 @@ struct EditMedSheet: View {
                     )) {
                         if let idx = editingDoseIndex {
                             DoseTimePickerSheet(
-                                doseNumber: idx + 1,
+                                doseNumber: scheduledTimes.count == 1 ? 0 : idx + 1,
                                 time: $tempDoseTime,
                                 onDone: {
                                     scheduledTimes[idx] = tempDoseTime
@@ -517,6 +512,17 @@ struct EditMedSheet: View {
                 .frame(maxWidth: .infinity)
             }
             .background(AppTheme.surface.ignoresSafeArea())
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                // Number pads have no return key — give every keyboard a way out
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                        to: nil, from: nil, for: nil)
+                    }
+                }
+            }
             .navigationTitle("Edit Medication")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

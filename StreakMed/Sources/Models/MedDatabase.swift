@@ -62,8 +62,9 @@ struct MedDBEntry: Decodable, Identifiable, Hashable {
     }
 
     /// Strengths that parse into dose fields — only these get chips.
+    /// "1 mg/ml" is a concentration, not a dose — tapping it filled "1 mg".
     var tappableStrengths: [String] {
-        s.filter { doseComponents(for: $0) != nil }
+        s.filter { !$0.contains("/") && doseComponents(for: $0) != nil }
     }
 }
 
