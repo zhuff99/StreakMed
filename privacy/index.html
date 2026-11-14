@@ -21,7 +21,7 @@
 <section>
 <h2>Data Collection</h2>
 <p class="lead">StreakMed does not collect any personal data.</p>
-<p>All information you enter into the App — including medication names, dosages, schedules, and tracking history — is stored exclusively on your device using Apple's built-in on-device storage (CoreData). This data never leaves your device and is never transmitted to any server, third party, or external service, with one optional exception you control: the Prescription Scanning feature described below, which only operates if you enable it and only when you actively use it.</p>
+<p>All information you enter into the App — including medication names, dosages, schedules, and tracking history — is stored exclusively on your device using Apple's built-in on-device storage (CoreData). This data never leaves your device and is never transmitted to any server, third party, or external service.</p>
 </section>
 
 <section>
@@ -45,19 +45,6 @@
 <h2>Data Export</h2>
 <p>The App includes an optional Export History feature that allows you to generate a copy of your medication history as a CSV or PDF file. This export is created entirely on your device. The App does not transmit this file anywhere automatically.</p>
 <p>When you choose to share an exported file using iOS's share sheet (for example, saving it to Files, emailing it, or sending it via a messaging app), that file leaves your device and is subject to the privacy policies of the service you share it with. You are responsible for how exported files are handled once shared.</p>
-</section>
-
-<section>
-<h2>Prescription Scanning (Optional)</h2>
-<p>The App includes an optional AI-powered prescription label scanning feature. To use this feature, you must supply your own API key from Anthropic (<a href="https://console.anthropic.com">console.anthropic.com</a>). This key is stored in the iOS Keychain on your device — it is never synced, never included in backups, and never shared with or transmitted to StreakMed.</p>
-<p>When you use the scanning feature:</p>
-<ul>
-<li><strong>Your photo never leaves your device.</strong> The label text is read from the image entirely on-device using Apple's Vision framework.</li>
-<li><strong>Identifying details are removed before anything is sent.</strong> Phone numbers, addresses, dates, and prescription (Rx) numbers detected in the label text are stripped on your device.</li>
-<li>The remaining text (medication name, strength, and directions) is sent securely to Anthropic's Claude API using your own key, solely to identify the medication and fill in the form for you. This happens only when you tap "Scan," and never automatically.</li>
-<li>This transmission is governed by Anthropic's Privacy Policy (<a href="https://www.anthropic.com/legal/privacy">anthropic.com/legal/privacy</a>). Anthropic does not use API data to train its models. StreakMed has no server and no access to the content of these requests or responses.</li>
-</ul>
-<p>If you do not use this feature, no data is ever sent off your device.</p>
 </section>
 
 <section>
