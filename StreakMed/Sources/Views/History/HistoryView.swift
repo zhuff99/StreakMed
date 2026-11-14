@@ -250,7 +250,7 @@ struct StatsGrid: View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             StatCard(
                 label: "This Month",
-                value: "\(store.adherenceRateThisMonth())%",
+                value: store.adherenceThisMonthText,
                 sub:   "adherence rate",
                 color: AppTheme.accent
             )

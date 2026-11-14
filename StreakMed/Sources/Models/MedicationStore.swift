@@ -712,7 +712,12 @@ final class MedicationStore: ObservableObject {
         let today    = cal.startOfDay(for: DebugDateManager.shared.currentDate)
 
         if startDay > today  { return .future }
-        if startDay == today { return .today  }
+        if startDay == today {
+            // Everything done today → show the check now (the streak already counts it)
+            let items = scheduledTodayDoseItems
+            return !items.isEmpty && items.allSatisfy { isTaken($0.medication, doseIndex: $0.doseIndex) } && !isSkipped(date)
+                ? .perfect : .today
+        }
 
         // Dates before the earliest medication was added have no data — show as neutral
         if let earliestCreated = medications.compactMap({ $0.createdAt }).min() {
@@ -765,6 +770,20 @@ final class MedicationStore: ObservableObject {
         }
 
         return totalScheduled > 0 ? min(100, Int((Double(totalTaken) / Double(totalScheduled)) * 100)) : 0
+    }
+
+    /// "92%" — or "—" before there's a full past day to measure (day one
+    /// used to read "0%" even with every dose taken).
+    var adherenceThisMonthText: String {
+        let cal = Calendar.current
+        let now = DebugDateManager.shared.currentDate
+        guard let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) else { return "—" }
+        var day = monthStart
+        while day < cal.startOfDay(for: now) {
+            if !isSkipped(day) && !scheduledMeds(on: day).isEmpty { return "\(adherenceRateThisMonth())%" }
+            day = cal.date(byAdding: .day, value: 1, to: day)!
+        }
+        return "—"
     }
 
     // MARK: - Adherence report

@@ -233,7 +233,12 @@ struct PrescriptionScannerSheet: View {
             return
         }
 
-        let key = apiKey.trimmingCharacters(in: .whitespaces)
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else {
+            scanError  = "Add your Claude API key in Settings → Prescription Scanning first."
+            isScanning = false
+            return
+        }
 
         // Step 1: Vision OCR — runs on a background thread
         let ocrRequest = VNRecognizeTextRequest { request, error in
@@ -261,6 +266,13 @@ struct PrescriptionScannerSheet: View {
             // Strip lines that look like patient PII before anything leaves the
             // device — the parser only needs drug, strength, and directions.
             let labelText = PIIRedactor.redact(lines: lines).joined(separator: "\n")
+            guard !labelText.isEmpty else {
+                DispatchQueue.main.async {
+                    self.isScanning = false
+                    self.scanError  = "Couldn't find the medication on this label. Try a closer photo of the drug name."
+                }
+                return
+            }
 
             // Step 2: Hand redacted OCR text to Claude for structured parsing
             ClaudeParser.parse(text: labelText, apiKey: key) { result, parseError in
@@ -280,9 +292,21 @@ struct PrescriptionScannerSheet: View {
         ocrRequest.recognitionLevel       = .accurate   // slower but much more accurate than .fast
         ocrRequest.usesLanguageCorrection = true        // fixes common OCR typos using a language model
 
+        // Camera photos are stored sideways with an orientation flag; without
+        // it Vision reads a portrait label rotated 90° and finds nothing.
+        let orientation = CGImagePropertyOrientation(image.imageOrientation)
         DispatchQueue.global(qos: .userInitiated).async {
-            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-            try? handler.perform([ocrRequest])
+            let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
+            do {
+                try handler.perform([ocrRequest])
+            } catch {
+                // perform() failing never calls the request's completion — reset
+                // here or the spinner runs forever.
+                DispatchQueue.main.async {
+                    self.isScanning = false
+                    self.scanError  = "Couldn't read this photo. Try another one."
+                }
+            }
         }
     }
 }
@@ -495,6 +519,23 @@ struct CameraPickerRepresentable: UIViewControllerRepresentable {
         }
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             picker.dismiss(animated: true)
+        }
+    }
+}
+
+
+extension CGImagePropertyOrientation {
+    init(_ ui: UIImage.Orientation) {
+        switch ui {
+        case .up:            self = .up
+        case .down:          self = .down
+        case .left:          self = .left
+        case .right:         self = .right
+        case .upMirrored:    self = .upMirrored
+        case .downMirrored:  self = .downMirrored
+        case .leftMirrored:  self = .leftMirrored
+        case .rightMirrored: self = .rightMirrored
+        @unknown default:    self = .up
         }
     }
 }

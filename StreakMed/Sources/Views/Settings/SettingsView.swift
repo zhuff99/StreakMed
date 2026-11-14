@@ -304,11 +304,11 @@ struct SettingsView: View {
                 SettingsCard(title: "Data") {
                     SettingsInfoRow(label: "Medications tracked",   value: "\(store.medications.count)")
                     Divider().background(AppTheme.border)
-                    SettingsInfoRow(label: "Current streak",        value: "\(store.currentStreak) days")
+                    SettingsInfoRow(label: "Current streak",        value: store.currentStreak == 1 ? "1 day" : "\(store.currentStreak) days")
                     Divider().background(AppTheme.border)
-                    SettingsInfoRow(label: "Best streak",           value: "\(store.bestStreak) days")
+                    SettingsInfoRow(label: "Best streak",           value: store.bestStreak == 1 ? "1 day" : "\(store.bestStreak) days")
                     Divider().background(AppTheme.border)
-                    SettingsInfoRow(label: "Adherence this month",  value: "\(store.adherenceRateThisMonth())%")
+                    SettingsInfoRow(label: "Adherence this month",  value: store.adherenceThisMonthText)
                     Divider().background(AppTheme.border)
                     SettingsLinkRow(
                         label: isExporting ? "Preparing export…" : "Export History",
@@ -598,7 +598,7 @@ struct ScanningSettingsCard: View {
         SettingsCard(title: "Prescription Scanning") {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Enter your Claude API key to enable AI-powered prescription label scanning.")
+                    Text("Enter your own Claude API key to enable AI-powered prescription label scanning. Scans are billed to your Anthropic account (usually a fraction of a cent each).")
                         .font(.system(size: 13))
                         .foregroundColor(AppTheme.textMuted)
                     Button {
@@ -607,7 +607,7 @@ struct ScanningSettingsCard: View {
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text("Get a free API key →")
+                            Text("Get an API key →")
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(AppTheme.accent)
                         }
