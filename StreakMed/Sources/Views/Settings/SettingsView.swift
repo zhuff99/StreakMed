@@ -209,6 +209,8 @@ struct SettingsView: View {
                         .padding(.vertical, 8)
                     }
 
+                    // Sub-settings only matter while Reminders is on
+                    if notificationsEnabled {
                     Divider().background(AppTheme.border)
                     SettingsToggleRow(
                         label: "Missed dose reminders",
@@ -276,6 +278,7 @@ struct SettingsView: View {
                             set: { snoozeEnabled = $0; NotificationManager.shared.registerCategories() }
                         )
                     )
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
