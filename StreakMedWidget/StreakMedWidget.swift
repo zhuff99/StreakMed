@@ -54,6 +54,11 @@ struct StreakMedEntry: TimelineEntry {
     }
 }
 
+/// Mirrors the app's Face ID lock setting (written by the app's snapshot).
+private var widgetHidesNames: Bool {
+    UserDefaults(suiteName: widgetGroupID)?.bool(forKey: "widget_hide_names") ?? false
+}
+
 // MARK: - UserDefaults snapshot reader
 
 /// The app's snapshot describes the day in `widget_day`. Once that day is over,
@@ -420,7 +425,10 @@ struct MediumWidgetView: View {
 
                     if let name = entry.nextMedName, let time = entry.nextMedTime {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(name)
+                            // App's Face ID lock on → don't name meds on the Home Screen;
+                            // privacySensitive also blurs it while the phone is locked (StandBy).
+                            Text(widgetHidesNames ? "Next dose" : name)
+                                .privacySensitive()
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundColor(.smText)
                                 .lineLimit(2)

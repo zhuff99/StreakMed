@@ -292,7 +292,7 @@ struct SettingsView: View {
                             get: { biometricLockEnabled },
                             set: { on in
                                 if on && !LockScreenView.canLock { showNoPasscodeAlert = true }
-                                else { biometricLockEnabled = on }
+                                else { biometricLockEnabled = on; store.updateWidgetSnapshot() }
                             }
                         )
                     )

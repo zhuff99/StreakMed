@@ -237,6 +237,7 @@ final class MedicationStore: ObservableObject {
         defaults.set(scheduledTodayCount, forKey: "widget_total")
         defaults.set(currentStreak,       forKey: "widget_streak")
         defaults.set(AppTheme.palette.dark.accent, forKey: "widget_accent")
+        defaults.set(UserDefaults.standard.bool(forKey: "biometricLockEnabled"), forKey: "widget_hide_names")
         if let next = pendingDoseItems.first {
             defaults.set(next.medication.name ?? "",                           forKey: "widget_next_name")
             defaults.set(next.scheduledTime?.timeIntervalSince1970 ?? 0,       forKey: "widget_next_time")
